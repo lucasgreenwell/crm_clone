@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Bell, Menu } from "lucide-react"
 
 export function Header() {
@@ -58,7 +58,6 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder-avatar.jpg" alt={user?.display_name || "User avatar"} />
                     <AvatarFallback>{user?.display_name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                 </Button>

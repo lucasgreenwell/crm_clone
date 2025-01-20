@@ -8,16 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "../components/Header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface Ticket {
-  id: string
-  subject: string
-  description: string
-  status: string
-  priority: string
-  channel: string
-  created_at: string
-}
+import { Ticket } from "@/app/types/ticket"
 
 export default function Dashboard() {
   const { user } = useAuth()

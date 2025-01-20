@@ -3,3 +3,6 @@ Do not try to run psql or supabase commands directly. Instead, print out the ful
 
 RULE 2:
 Any reads from the database should be done through the supabase client and have realtime enabled. Any writes should be handled in the API layer. 
+
+RULE 3:
+All types should be defined in the `types` directory. Never create a type within a component file.
