@@ -1,0 +1,5 @@
+RULE 1:
+Do not try to run psql or supabase commands directly. Instead, print out the full query and ask the user to run it in the supabase console.
+
+RULE 2:
+Any reads from the database should be done through the supabase client and have realtime enabled. Any writes should be handled in the API layer. 
