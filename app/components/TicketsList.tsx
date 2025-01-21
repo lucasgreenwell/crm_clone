@@ -3,6 +3,7 @@ import { Ticket } from "@/app/types/ticket"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, X } from "lucide-react"
 import { CreateTicketModal } from "@/app/components/modals/CreateTicketModal"
+import { EditTicketModal } from "@/app/components/modals/EditTicketModal"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Dialog,
@@ -120,34 +121,10 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
     setTickets((prev) => [newTicket, ...prev])
   }
 
-  const handleUpdateTicket = async (ticket: Ticket) => {
-    try {
-      const response = await fetch("/api/tickets", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(ticket),
-      })
-
-      if (!response.ok) throw new Error("Failed to update ticket")
-
-      const updatedTicket = await response.json()
-      setTickets((prev) =>
-        prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t))
-      )
-      setEditingTicket(null)
-      toast({
-        title: "Success",
-        description: "Ticket updated successfully",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket",
-        variant: "destructive",
-      })
-    }
+  const handleTicketUpdated = (updatedTicket: Ticket) => {
+    setTickets((prev) =>
+      prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t))
+    )
   }
 
   const handleDeleteTicket = async (ticket: Ticket) => {
@@ -454,76 +431,12 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
         </div>
       )}
 
-      {/* Edit Ticket Dialog */}
-      <Dialog open={!!editingTicket} onOpenChange={() => setEditingTicket(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Ticket</DialogTitle>
-            <DialogDescription>
-              Make changes to your ticket here. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          {editingTicket && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                handleUpdateTicket({
-                  ...editingTicket,
-                  subject: formData.get("subject") as string,
-                  description: formData.get("description") as string,
-                  status: formData.get("status") as Ticket['status'] || editingTicket.status,
-                })
-              }}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <label htmlFor="subject" className="text-sm font-medium">
-                  Subject
-                </label>
-                <Input
-                  id="subject"
-                  name="subject"
-                  defaultValue={editingTicket.subject}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium">
-                  Description
-                </label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  defaultValue={editingTicket.description}
-                  required
-                />
-              </div>
-              {user?.role !== 'customer' && (
-                <div className="space-y-2">
-                  <label htmlFor="status" className="text-sm font-medium">
-                    Status
-                  </label>
-                  <input type="hidden" name="status" value={editingTicket.status} />
-                  <StatusSelect
-                    value={editingTicket.status}
-                    onValueChange={(value) => {
-                      setEditingTicket({ ...editingTicket, status: value })
-                    }}
-                    triggerClassName="w-full"
-                  />
-                </div>
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingTicket(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save changes</Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EditTicketModal
+        ticket={editingTicket}
+        open={!!editingTicket}
+        onOpenChange={(open) => !open && setEditingTicket(null)}
+        onTicketUpdated={handleTicketUpdated}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
