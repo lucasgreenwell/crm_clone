@@ -6,7 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Header } from "../components/Header"
+import { Header } from "@/app/components/Header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Ticket } from "@/app/types/ticket"
 

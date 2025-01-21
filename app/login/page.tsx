@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,12 +9,13 @@ import { useToast } from "@/components/ui/use-toast"
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const supabase = createClientComponentClient()
   const { toast } = useToast()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
@@ -31,15 +31,18 @@ export default function Login() {
           // If profile doesn't exist, create one
           await supabase.from("profiles").insert({ user_id: user.id, role: "customer" })
         }
+        
+        // Refresh the page to trigger middleware
+        window.location.href = '/'
       }
-
-      router.push("/dashboard")
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred during login",
         variant: "destructive",
       })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -48,16 +51,24 @@ export default function Login() {
       <div className="w-full max-w-md space-y-8">
         <h1 className="text-2xl font-bold text-center">Login</h1>
         <form onSubmit={handleLogin} className="space-y-4">
-          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input 
+            type="email" 
+            placeholder="Email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+            disabled={loading}
+          />
           <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
-          <Button type="submit" className="w-full">
-            Login
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
           </Button>
         </form>
         <div className="text-center mt-4">

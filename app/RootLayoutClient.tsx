@@ -25,8 +25,6 @@ export default function RootLayoutClient({
       
       if (!user && !isPublicPath) {
         router.push("/login")
-      } else if (user && isPublicPath && pathname !== "/auth/callback") {
-        router.push("/dashboard")
       }
     }
   }, [user, loading, pathname, router])
