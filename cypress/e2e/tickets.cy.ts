@@ -1,5 +1,5 @@
-describe("Ticket Creation", () => {
-  describe("Customer View", () => {
+describe("Ticket Operations", () => {
+  describe("Customer Tickets", () => {
     beforeEach(() => {
       const email = Cypress.env('CUSTOMER_TEST_USER_EMAIL')
       const password = Cypress.env('CUSTOMER_TEST_USER_PASSWORD')
@@ -15,7 +15,30 @@ describe("Ticket Creation", () => {
       cy.get('h1').contains('My Tickets').should('be.visible')
     })
 
-    it("should open the create ticket modal and create a ticket", () => {
+    it("should display the tickets page", () => {
+      cy.get('h1').contains('My Tickets').should('be.visible')
+    })
+
+    it("should show loading state initially", () => {
+      cy.visit('/customer/tickets') // Force a fresh load
+      cy.contains('Loading tickets...').should('be.visible')
+    })
+
+    it("should display empty state when no tickets", () => {
+      // Intercept the tickets query and return empty array
+      cy.intercept('GET', '**/rest/v1/tickets?*', {
+        statusCode: 200,
+        body: []
+      }).as('getTickets')
+      
+      cy.visit('/customer/tickets')
+      cy.wait('@getTickets')
+      
+      cy.contains('No tickets found').should('be.visible')
+      cy.contains('Create a new ticket to get started').should('be.visible')
+    })
+
+    it("should create, update, and delete a ticket", () => {
       // Click the create ticket button
       cy.contains("Create New Ticket").should('be.visible').click()
       
@@ -46,9 +69,26 @@ describe("Ticket Creation", () => {
       
       // New ticket should appear in the list
       cy.contains("Test Ticket").should("be.visible")
+
+      // Update the ticket
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Edit').click()
+      cy.get('#subject').clear().type('Updated Test Ticket')
+      cy.get('form').within(() => {
+        cy.contains('Save changes').click()
+      })
+
+      // Delete the ticket
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Delete').click()
+      cy.get('button').contains('Delete').click()
+      
+      // Verify deletion
+      cy.contains('Success').should('be.visible')
+      cy.contains('Test Ticket').should('not.exist')
     })
 
-    it("should validate required fields", () => {
+    it("should validate required fields in create modal", () => {
       cy.contains("Create New Ticket").should('be.visible').click()
       
       // Wait for modal to be fully visible
@@ -68,7 +108,7 @@ describe("Ticket Creation", () => {
         .should('deep.include', { valid: false })
     })
 
-    it("should handle API errors gracefully", () => {
+    it("should handle API errors gracefully in create modal", () => {
       cy.contains("Create New Ticket").should('be.visible').click()
       
       // Wait for modal to be fully visible
@@ -96,7 +136,7 @@ describe("Ticket Creation", () => {
     })
   })
 
-  describe("Employee View", () => {
+  describe("Employee Tickets", () => {
     beforeEach(() => {
       const email = Cypress.env('EMPLOYEE_TEST_USER_EMAIL')
       const password = Cypress.env('EMPLOYEE_TEST_USER_PASSWORD')
@@ -112,31 +152,40 @@ describe("Ticket Creation", () => {
       cy.get('h1').contains('Dashboard').should('be.visible')
     })
 
-    it("should create ticket from dashboard", () => {
-      // Click the create ticket button
-      cy.contains("Create Ticket").should('be.visible').click()
-      
-      // Wait for modal to be fully visible
-      cy.get("div[role='dialog']").should("be.visible")
-      cy.get("h2").contains("Create New Ticket").should("be.visible")
-      
-      // Fill out the form
-      cy.get("#subject").should('be.visible').clear().type("Test Ticket")
-      cy.get("#description").should('be.visible').clear().type("This is a test ticket description")
-      
-      // Select priority - using data-state to ensure the select is closed before clicking
-      cy.get("[role='combobox']").should('be.visible').click()
-      cy.get("[role='listbox']").should('be.visible').within(() => {
+    it("should create, update, and delete ticket from tickets page", () => {
+      // Navigate to tickets page
+      cy.visit('/employee/tickets')
+      cy.url().should('include', '/employee/tickets')
+      cy.get('h1').contains('My Assigned Tickets').should('be.visible')
+
+      // Create a ticket
+      cy.contains('Create New Ticket').click()
+      cy.get('#subject').type('Test Employee Ticket')
+      cy.get('#description').type('This is a test ticket')
+      cy.get("[role='combobox']").click()
+      cy.get("[role='listbox']").within(() => {
         cy.contains("Medium").click()
       })
-      
-      // Submit the form
       cy.get("form").within(() => {
-        cy.contains("Create Ticket").should('be.visible').click()
+        cy.contains('Create Ticket').click()
       })
+
+      // Update the ticket
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Edit').click()
+      cy.get('#subject').clear().type('Updated Employee Ticket')
+      cy.get('form').within(() => {
+        cy.contains('Save changes').click()
+      })
+
+      // Delete the ticket
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Delete').click()
+      cy.get('button').contains('Delete').click()
       
-      // New ticket should appear in the list
-      cy.contains("Test Ticket").should("be.visible")
+      // Verify deletion
+      cy.contains('Success').should('be.visible')
+      cy.contains('Test Employee Ticket').should('not.exist')
     })
   })
 }) 
