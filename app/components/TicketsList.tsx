@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { StatusSelect } from "@/app/components/StatusSelect"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface TicketsListProps {
   fetchTickets: () => Promise<Ticket[]>
@@ -46,6 +47,10 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
   const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null)
   const [filters, setFilters] = useState<TicketFilters>({})
   const [users, setUsers] = useState<UserOption[]>([])
+  const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set())
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+  const [bulkStatus, setBulkStatus] = useState<Ticket['status']>('open')
+  const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false)
   const { toast } = useToast()
   const { user } = useUser()
   const supabase = createClientComponentClient()
@@ -225,6 +230,85 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
       'rgb(51 65 85)'
   })
 
+  const handleBulkDelete = async () => {
+    try {
+      const response = await fetch("/api/tickets/bulk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketIds: Array.from(selectedTickets),
+          action: 'delete'
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to delete tickets")
+
+      setTickets((prev) => prev.filter((t) => !selectedTickets.has(t.id)))
+      setSelectedTickets(new Set())
+      setShowBulkDeleteDialog(false)
+      toast({
+        title: "Success",
+        description: "Tickets deleted successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tickets",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBulkStatusUpdate = async () => {
+    try {
+      const response = await fetch("/api/tickets/bulk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticketIds: Array.from(selectedTickets),
+          action: 'update',
+          status: bulkStatus
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update tickets")
+
+      const updatedTickets = await response.json()
+      setTickets((prev) =>
+        prev.map((t) => {
+          const updated = updatedTickets.find((u: Ticket) => u.id === t.id)
+          return updated || t
+        })
+      )
+      setSelectedTickets(new Set())
+      setShowBulkStatusDialog(false)
+      toast({
+        title: "Success",
+        description: "Tickets updated successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update tickets",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const toggleTicketSelection = (ticketId: string) => {
+    const newSelected = new Set(selectedTickets)
+    if (newSelected.has(ticketId)) {
+      newSelected.delete(ticketId)
+    } else {
+      newSelected.add(ticketId)
+    }
+    setSelectedTickets(newSelected)
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -241,88 +325,119 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
         />
       </div>
 
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tickets..."
-                className="pl-8"
-                value={filters.search || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              />
-              {filters.search && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-2 h-4 w-4 p-0"
-                  onClick={() => setFilters(prev => ({ ...prev, search: undefined }))}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-          <Select
-            value={filters.status}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as any || undefined }))}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.created_by}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, created_by: value === 'all' ? undefined : value }))}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by creator" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All creators</SelectItem>
-              {creatorUsers.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.display_name || 'Unknown User'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={filters.assigned_to}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, assigned_to: value === 'all' ? undefined : value }))}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All assignees</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {assigneeUsers.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.display_name || 'Unknown User'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {Object.keys(filters).length > 0 && (
+      {selectedTickets.size > 0 ? (
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {selectedTickets.size} ticket{selectedTickets.size === 1 ? '' : 's'} selected
+            </span>
             <Button
               variant="outline"
-              onClick={() => setFilters({})}
               size="sm"
+              onClick={() => setSelectedTickets(new Set())}
             >
-              Clear filters
+              Clear selection
             </Button>
-          )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkStatusDialog(true)}
+            >
+              Update Status
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => setShowBulkDeleteDialog(true)}
+            >
+              Delete Selected
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tickets..."
+                  className="pl-8"
+                  value={filters.search || ''}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                />
+                {filters.search && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-2 h-4 w-4 p-0"
+                    onClick={() => setFilters(prev => ({ ...prev, search: undefined }))}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as any || undefined }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="open">Open</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="resolved">Resolved</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.created_by}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, created_by: value === 'all' ? undefined : value }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by creator" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All creators</SelectItem>
+                {creatorUsers.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.display_name || 'Unknown User'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={filters.assigned_to}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, assigned_to: value === 'all' ? undefined : value }))}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All assignees</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {assigneeUsers.map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.display_name || 'Unknown User'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {Object.keys(filters).length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setFilters({})}
+                size="sm"
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div>Loading tickets...</div>
@@ -342,7 +457,15 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
               key={ticket.id}
               className="p-4 border rounded-lg hover:border-primary transition-colors"
             >
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start gap-4">
+                {user?.role !== 'customer' && (
+                  <div className="pt-1">
+                    <Checkbox
+                      checked={selectedTickets.has(ticket.id)}
+                      onCheckedChange={() => toggleTicketSelection(ticket.id)}
+                    />
+                  </div>
+                )}
                 <div className="flex-1">
                   <h3 className="font-medium">{ticket.subject}</h3>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -498,6 +621,58 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
               onClick={() => ticketToDelete && handleDeleteTicket(ticketToDelete)}
             >
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Tickets</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedTickets.size} ticket{selectedTickets.size === 1 ? '' : 's'}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Status Update Dialog */}
+      <Dialog open={showBulkStatusDialog} onOpenChange={setShowBulkStatusDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Ticket Status</DialogTitle>
+            <DialogDescription>
+              Update the status of {selectedTickets.size} ticket{selectedTickets.size === 1 ? '' : 's'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <StatusSelect
+              value={bulkStatus}
+              onValueChange={setBulkStatus}
+              triggerClassName="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkStatusDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkStatusUpdate}
+            >
+              Update
             </Button>
           </DialogFooter>
         </DialogContent>
