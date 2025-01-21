@@ -9,3 +9,6 @@ All types should be defined in the `types` directory. Never create a type within
 
 RULE 4:
 All new UI features should have relevant tests added to our cypress test suite.
+
+RULE 5:
+All new components should be added to the `@/app/components` directory not `@/components` which is only used for shadcn UI components.
