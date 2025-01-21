@@ -36,16 +36,25 @@ describe('Login Page', () => {
       .contains('Invalid login credentials')
   })
 
-  it('should successfully login with valid credentials', () => {
-    const email = Cypress.env('TEST_USER_EMAIL')
-    const password = Cypress.env('TEST_USER_PASSWORD')
+  it('should redirect customer users to /customer/tickets after login', () => {
+    const email = Cypress.env('CUSTOMER_TEST_USER_EMAIL')
+    const password = Cypress.env('CUSTOMER_TEST_USER_PASSWORD')
 
-    // Wait for inputs to be visible before typing
     cy.get('input[type="email"]').should('be.visible').type(email)
     cy.get('input[type="password"]').should('be.visible').type(password)
     cy.get('button[type="submit"]').click()
 
-    // Wait for navigation to customer tickets page
     cy.url().should('include', '/customer/tickets', { timeout: 5000 })
+  })
+
+  it('should redirect employee users to /employee/dashboard after login', () => {
+    const email = Cypress.env('EMPLOYEE_TEST_USER_EMAIL')
+    const password = Cypress.env('EMPLOYEE_TEST_USER_PASSWORD')
+
+    cy.get('input[type="email"]').should('be.visible').type(email)
+    cy.get('input[type="password"]').should('be.visible').type(password)
+    cy.get('button[type="submit"]').click()
+
+    cy.url().should('include', '/employee/dashboard', { timeout: 5000 })
   })
 }) 
