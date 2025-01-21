@@ -12,3 +12,6 @@ All new UI features should have relevant tests added to our cypress test suite.
 
 RULE 5:
 All new components should be added to the `@/app/components` directory not `@/components` which is only used for shadcn UI components.
+
+RULE 6:
+For any cypress tests, use the existing test users, do not create new users. If you feel that a new user is needed, prompt the developer to create one.

@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { StatusSelect } from "@/app/components/StatusSelect"
 
 interface TicketsListProps {
   fetchTickets: () => Promise<Ticket[]>
@@ -185,6 +186,46 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
     return user?.display_name || 'Unknown User'
   }
 
+  const handleUpdateTicketStatus = async (ticket: Ticket, newStatus: Ticket['status']) => {
+    try {
+      const response = await fetch("/api/tickets", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ...ticket, status: newStatus }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update ticket status")
+
+      const updatedTicket = await response.json()
+      setTickets((prev) =>
+        prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t))
+      )
+      toast({
+        title: "Success",
+        description: "Ticket status updated successfully",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update ticket status",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getStatusStyles = (status: Ticket['status']) => ({
+    backgroundColor: status === 'open' ? 'rgb(254 242 242)' : 
+      status === 'pending' ? 'rgb(254 249 195)' : 
+      status === 'resolved' ? 'rgb(220 252 231)' : 
+      'rgb(241 245 249)',
+    color: status === 'open' ? 'rgb(153 27 27)' : 
+      status === 'pending' ? 'rgb(161 98 7)' : 
+      status === 'resolved' ? 'rgb(22 101 52)' : 
+      'rgb(51 65 85)'
+  })
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -320,20 +361,19 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
                 </div>
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize" 
-                      style={{
-                        backgroundColor: ticket.status === 'open' ? 'rgb(254 242 242)' : 
-                          ticket.status === 'pending' ? 'rgb(254 249 195)' : 
-                          ticket.status === 'resolved' ? 'rgb(220 252 231)' : 
-                          'rgb(241 245 249)',
-                        color: ticket.status === 'open' ? 'rgb(153 27 27)' : 
-                          ticket.status === 'pending' ? 'rgb(161 98 7)' : 
-                          ticket.status === 'resolved' ? 'rgb(22 101 52)' : 
-                          'rgb(51 65 85)'
-                      }}
-                    >
-                      {ticket.status.replace('_', ' ')}
-                    </span>
+                    {user?.role !== 'customer' ? (
+                      <StatusSelect
+                        value={ticket.status}
+                        onValueChange={(value) => handleUpdateTicketStatus(ticket, value)}
+                      />
+                    ) : (
+                      <span 
+                        className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize" 
+                        style={getStatusStyles(ticket.status)}
+                      >
+                        {ticket.status}
+                      </span>
+                    )}
                     {canModifyTicket(ticket) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -388,6 +428,7 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
                   ...editingTicket,
                   subject: formData.get("subject") as string,
                   description: formData.get("description") as string,
+                  status: formData.get("status") as Ticket['status'] || editingTicket.status,
                 })
               }}
               className="space-y-4"
@@ -414,6 +455,21 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
                   required
                 />
               </div>
+              {user?.role !== 'customer' && (
+                <div className="space-y-2">
+                  <label htmlFor="status" className="text-sm font-medium">
+                    Status
+                  </label>
+                  <input type="hidden" name="status" value={editingTicket.status} />
+                  <StatusSelect
+                    value={editingTicket.status}
+                    onValueChange={(value) => {
+                      setEditingTicket({ ...editingTicket, status: value })
+                    }}
+                    triggerClassName="w-full"
+                  />
+                </div>
+              )}
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditingTicket(null)}>
                   Cancel
