@@ -94,10 +94,13 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="recent" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="recent">Recent Tickets</TabsTrigger>
-            <TabsTrigger value="all">All Tickets</TabsTrigger>
-          </TabsList>
+          <div className="flex justify-between items-center">
+            <TabsList>
+              <TabsTrigger value="recent">Recent Tickets</TabsTrigger>
+              <TabsTrigger value="all">All Tickets</TabsTrigger>
+            </TabsList>
+            <CreateTicketModal onTicketCreated={handleTicketCreated} />
+          </div>
           <TabsContent value="recent" className="space-y-4">
             {tickets.slice(0, 5).map((ticket) => (
               <Card key={ticket.id}>
