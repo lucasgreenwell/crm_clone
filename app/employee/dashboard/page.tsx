@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CreateTicketModal } from "@/components/modals/CreateTicketModal"
 import { Ticket } from "@/app/types/ticket"
 
 export default function Dashboard() {
@@ -38,6 +39,10 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error fetching tickets:", error)
     }
+  }
+
+  const handleTicketCreated = (newTicket: Ticket) => {
+    setTickets((prev) => [newTicket, ...prev])
   }
 
   if (!user) {
@@ -114,7 +119,7 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="text-center py-8">
                   <p className="text-muted-foreground mb-4">No tickets found.</p>
-                  <Button>Create a New Ticket</Button>
+                  <CreateTicketModal onTicketCreated={handleTicketCreated} />
                 </CardContent>
               </Card>
             )}
@@ -141,7 +146,7 @@ export default function Dashboard() {
               <Card>
                 <CardContent className="text-center py-8">
                   <p className="text-muted-foreground mb-4">No tickets found.</p>
-                  <Button>Create a New Ticket</Button>
+                  <CreateTicketModal onTicketCreated={handleTicketCreated} />
                 </CardContent>
               </Card>
             )}

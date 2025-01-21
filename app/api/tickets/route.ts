@@ -1,28 +1,46 @@
+import { NextResponse } from "next/server"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
-import { NextResponse } from "next/server"
 
 export async function POST(request: Request) {
-  const { title, description } = await request.json()
-  const supabase = createRouteHandlerClient({ cookies })
+  try {
+    const supabase = createRouteHandlerClient({ cookies })
+    const data = await request.json()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    const { error } = await supabase.from("tickets").insert([
+      {
+        subject: data.subject,
+        description: data.description,
+        priority: data.priority,
+        channel: data.channel,
+        status: data.status,
+        created_by: data.created_by,
+      },
+    ])
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Fetch the created ticket to return it
+    const { data: ticket, error: fetchError } = await supabase
+      .from("tickets")
+      .select("*")
+      .eq("created_by", data.created_by)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+
+    if (fetchError) {
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+
+    return NextResponse.json(ticket)
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
-
-  const { data, error } = await supabase
-    .from("tickets")
-    .insert({ title, description, user_id: user.id, status: "open" })
-    .select()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json(data[0])
 }
 

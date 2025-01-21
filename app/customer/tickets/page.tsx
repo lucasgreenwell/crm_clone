@@ -5,7 +5,7 @@ import { useUser } from "@/app/hooks/useUser"
 import { getSupabase } from "@/app/auth/supabase"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import Link from "next/link"
+import { CreateTicketModal } from "@/components/modals/CreateTicketModal"
 import { Ticket } from "@/app/types/ticket"
 
 export default function CustomerTickets() {
@@ -36,18 +36,25 @@ export default function CustomerTickets() {
     fetchTickets()
   }, [user])
 
+  const handleTicketCreated = (newTicket: Ticket) => {
+    setTickets((prev) => [newTicket, ...prev])
+  }
+
   if (!user) return null
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">My Tickets</h1>
-        <Link href="/customer/tickets/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Ticket
-          </Button>
-        </Link>
+        <CreateTicketModal
+          trigger={
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Ticket
+            </Button>
+          }
+          onTicketCreated={handleTicketCreated}
+        />
       </div>
 
       {loading ? (
