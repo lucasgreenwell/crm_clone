@@ -41,6 +41,7 @@ EXECUTE PROCEDURE public.update_timestamp();
 -- RLS Policies
 -- ===========================================
 
+-- Policy: customers can SELECT their own tickets
 CREATE POLICY tickets_customer_select_own
 ON public.tickets
 FOR SELECT
@@ -54,6 +55,21 @@ USING (
   )
 );
 
+-- Policy: customers can INSERT tickets
+CREATE POLICY tickets_customer_insert
+ON public.tickets
+FOR INSERT
+WITH CHECK (
+  auth.uid() = created_by
+  AND EXISTS(
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.user_id = auth.uid()
+      AND p.role = 'customer'
+  )
+);
+
+-- Policy: customers can UPDATE their own tickets
 CREATE POLICY tickets_customer_update_own
 ON public.tickets
 FOR UPDATE
@@ -76,6 +92,7 @@ WITH CHECK (
   )
 );
 
+-- Policy: agents can SELECT tickets assigned to them or their team
 CREATE POLICY tickets_agent_select_assigned
 ON public.tickets
 FOR SELECT
@@ -96,6 +113,7 @@ USING (
   )
 );
 
+-- Policy: agents can UPDATE tickets assigned to them or their team
 CREATE POLICY tickets_agent_update_assigned
 ON public.tickets
 FOR UPDATE
@@ -124,6 +142,7 @@ WITH CHECK (
   )
 );
 
+-- Policy: admins can SELECT all tickets
 CREATE POLICY tickets_admin_select_all
 ON public.tickets
 FOR SELECT
@@ -136,6 +155,7 @@ USING (
   )
 );
 
+-- Policy: admins can UPDATE all tickets
 CREATE POLICY tickets_admin_update_all
 ON public.tickets
 FOR UPDATE

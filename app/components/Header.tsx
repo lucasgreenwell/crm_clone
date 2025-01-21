@@ -17,6 +17,51 @@ import { Bell, Menu } from "lucide-react"
 export function Header() {
   const { user, signOut } = useUser()
 
+  const renderNavigation = () => {
+    if (!user) return null
+
+    if (user.role === 'customer') {
+      return (
+        <nav className="hidden md:block ml-10">
+          <ul className="flex space-x-4">
+            <li>
+              <Link href="/customer/tickets" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                My Tickets
+              </Link>
+            </li>
+          </ul>
+        </nav>
+      )
+    }
+
+    return (
+      <nav className="hidden md:block ml-10">
+        <ul className="flex space-x-4">
+          <li>
+            <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Dashboard
+            </Link>
+          </li>
+          <li>
+            <Link href="/tickets" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Tickets
+            </Link>
+          </li>
+          <li>
+            <Link href="/customers" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Customers
+            </Link>
+          </li>
+          <li>
+            <Link href="/reports" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Reports
+            </Link>
+          </li>
+        </ul>
+      </nav>
+    )
+  }
+
   return (
     <header className="bg-background border-b">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,30 +70,7 @@ export function Header() {
             <Link href="/" className="flex-shrink-0">
               <h1 className="text-2xl font-bold">CRM Tool</h1>
             </Link>
-            <nav className="hidden md:block ml-10">
-              <ul className="flex space-x-4">
-                <li>
-                  <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/tickets" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                    Tickets
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/customers" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                    Customers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/reports" className="text-sm font-medium text-muted-foreground hover:text-primary">
-                    Reports
-                  </Link>
-                </li>
-              </ul>
-            </nav>
+            {renderNavigation()}
           </div>
           <div className="flex items-center">
             <Button variant="ghost" size="icon" className="mr-2">
