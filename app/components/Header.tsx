@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useAuth } from "../components/AuthProvider"
+import { useUser } from "@/app/hooks/useUser"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Bell, Menu } from "lucide-react"
 
 export function Header() {
-  const { user, signOut } = useAuth()
+  const { user, signOut } = useUser()
 
   return (
     <header className="bg-background border-b">

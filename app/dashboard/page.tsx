@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useAuth } from "@/hooks/useAuth"
+import { useUser } from "@/app/hooks/useUser"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,9 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Ticket } from "@/app/types/ticket"
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { user, loading, fetchUser } = useUser()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    fetchUser()
+  }, [fetchUser])
 
   useEffect(() => {
     if (user) {

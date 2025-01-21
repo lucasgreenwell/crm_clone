@@ -2,10 +2,10 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "./components/AuthProvider"
+import { useUser } from "./hooks/useUser"
 
 export default function Home() {
-  const { user, loading } = useAuth()
+  const { user, loading } = useUser()
   const router = useRouter()
 
   useEffect(() => {
