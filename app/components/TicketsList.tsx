@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react"
 import { Ticket } from "@/app/types/ticket"
 import { Button } from "@/components/ui/button"
-import { Plus, MoreVertical, Pencil, Trash, Search, X } from "lucide-react"
+import { Plus, Search, X } from "lucide-react"
 import { CreateTicketModal } from "@/app/components/modals/CreateTicketModal"
 import { useToast } from "@/components/ui/use-toast"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -31,15 +25,16 @@ import {
 } from "@/components/ui/select"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { StatusSelect } from "@/app/components/StatusSelect"
-import { Checkbox } from "@/components/ui/checkbox"
+import { TicketCard } from "@/app/components/TicketCard"
 
 interface TicketsListProps {
   fetchTickets: () => Promise<Ticket[]>
   title: string
   defaultAssignee?: string
+  showBulkActions?: boolean
 }
 
-export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsListProps) {
+export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActions = true }: TicketsListProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
@@ -57,7 +52,6 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
 
   useEffect(() => {
     const loadUsers = async () => {
-      // Get unique user IDs from tickets
       const uniqueUserIds = new Set<string>()
       tickets.forEach(ticket => {
         if (ticket.created_by) uniqueUserIds.add(ticket.created_by)
@@ -95,7 +89,6 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
     loadTickets()
   }, [fetchTickets])
 
-  // Get unique lists of users for each dropdown
   const creatorUsers = users.filter(u => 
     tickets.some(t => t.created_by === u.id)
   )
@@ -219,17 +212,6 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
     }
   }
 
-  const getStatusStyles = (status: Ticket['status']) => ({
-    backgroundColor: status === 'open' ? 'rgb(254 242 242)' : 
-      status === 'pending' ? 'rgb(254 249 195)' : 
-      status === 'resolved' ? 'rgb(220 252 231)' : 
-      'rgb(241 245 249)',
-    color: status === 'open' ? 'rgb(153 27 27)' : 
-      status === 'pending' ? 'rgb(161 98 7)' : 
-      status === 'resolved' ? 'rgb(22 101 52)' : 
-      'rgb(51 65 85)'
-  })
-
   const handleBulkDelete = async () => {
     try {
       const response = await fetch("/api/tickets/bulk", {
@@ -325,7 +307,7 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
         />
       </div>
 
-      {selectedTickets.size > 0 ? (
+      {selectedTickets.size > 0 && showBulkActions ? (
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">
@@ -453,82 +435,21 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
       ) : (
         <div className="grid gap-4">
           {filteredTickets.map((ticket) => (
-            <div
+            <TicketCard
               key={ticket.id}
-              className="p-4 border rounded-lg hover:border-primary transition-colors"
-            >
-              <div className="flex justify-between items-start gap-4">
-                {user?.role !== 'customer' && (
-                  <div className="pt-1">
-                    <Checkbox
-                      data-testid="ticket-select-checkbox"
-                      checked={selectedTickets.has(ticket.id)}
-                      onCheckedChange={() => toggleTicketSelection(ticket.id)}
-                    />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="font-medium">{ticket.subject}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {ticket.description}
-                  </p>
-                  <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
-                    <span>Created by: {getUserDisplayName(ticket.created_by)}</span>
-                    {ticket.assigned_to && (
-                      <>
-                        <span>•</span>
-                        <span>Assigned to: {getUserDisplayName(ticket.assigned_to)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end">
-                  <div className="flex items-center gap-2">
-                    {user?.role !== 'customer' ? (
-                      <StatusSelect
-                        value={ticket.status}
-                        onValueChange={(value) => handleUpdateTicketStatus(ticket, value)}
-                      />
-                    ) : (
-                      <span 
-                        className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize" 
-                        style={getStatusStyles(ticket.status)}
-                      >
-                        {ticket.status}
-                      </span>
-                    )}
-                    {canModifyTicket(ticket) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" aria-label="Ticket actions">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditingTicket(ticket)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => {
-                              setTicketToDelete(ticket)
-                              setShowDeleteDialog(true)
-                            }}
-                          >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground mt-2">
-                    {new Date(ticket.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
+              ticket={ticket}
+              canModifyTicket={canModifyTicket(ticket)}
+              showCheckbox={showBulkActions && user?.role !== 'customer'}
+              isSelected={selectedTickets.has(ticket.id)}
+              onSelect={toggleTicketSelection}
+              onStatusChange={user?.role !== 'customer' ? handleUpdateTicketStatus : undefined}
+              onEdit={canModifyTicket(ticket) ? () => setEditingTicket(ticket) : undefined}
+              onDelete={canModifyTicket(ticket) ? () => {
+                setTicketToDelete(ticket)
+                setShowDeleteDialog(true)
+              } : undefined}
+              getUserDisplayName={getUserDisplayName}
+            />
           ))}
         </div>
       )}

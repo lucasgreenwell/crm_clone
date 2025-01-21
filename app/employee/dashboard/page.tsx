@@ -4,11 +4,8 @@ import { useEffect, useState } from "react"
 import { useUser } from "@/app/hooks/useUser"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreateTicketModal } from "@/app/components/modals/CreateTicketModal"
 import { Ticket } from "@/app/types/ticket"
+import { TicketsList } from "@/app/components/TicketsList"
 
 export default function Dashboard() {
   const { user, loading, fetchUser } = useUser()
@@ -21,7 +18,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      fetchTickets()
+      fetchTickets().then(setTickets)
     }
   }, [user])
 
@@ -29,20 +26,16 @@ export default function Dashboard() {
     try {
       let query = supabase.from("tickets").select("*")
 
-      if (!user) return;
+      if (!user) return []
 
-      // For now, let's just fetch all tickets since we need to implement proper role-based filtering
       const { data, error } = await query
 
       if (error) throw error
-      setTickets(data)
+      return data || []
     } catch (error) {
       console.error("Error fetching tickets:", error)
+      return []
     }
-  }
-
-  const handleTicketCreated = (newTicket: Ticket) => {
-    setTickets((prev) => [newTicket, ...prev])
   }
 
   if (!user) {
@@ -93,68 +86,11 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="recent" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <TabsList>
-              <TabsTrigger value="recent">Recent Tickets</TabsTrigger>
-              <TabsTrigger value="all">All Tickets</TabsTrigger>
-            </TabsList>
-            <CreateTicketModal onTicketCreated={handleTicketCreated} />
-          </div>
-          <TabsContent value="recent" className="space-y-4">
-            {tickets.slice(0, 5).map((ticket) => (
-              <Card key={ticket.id}>
-                <CardHeader>
-                  <CardTitle className="text-xl">{ticket.subject}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-2">{ticket.description}</p>
-                  <div className="flex justify-between items-center">
-                    <Badge variant={ticket.status === "open" ? "default" : "secondary"}>{ticket.status}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Created on {new Date(ticket.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {tickets.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No tickets found.</p>
-                  <CreateTicketModal onTicketCreated={handleTicketCreated} />
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-          <TabsContent value="all" className="space-y-4">
-            {/* We'll implement pagination or infinite scroll here in the future */}
-            {tickets.map((ticket) => (
-              <Card key={ticket.id}>
-                <CardHeader>
-                  <CardTitle className="text-xl">{ticket.subject}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-2">{ticket.description}</p>
-                  <div className="flex justify-between items-center">
-                    <Badge variant={ticket.status === "open" ? "default" : "secondary"}>{ticket.status}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      Created on {new Date(ticket.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {tickets.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No tickets found.</p>
-                  <CreateTicketModal onTicketCreated={handleTicketCreated} />
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+        <TicketsList 
+          fetchTickets={fetchTickets} 
+          title="All Tickets" 
+          showBulkActions={false}
+        />
       </main>
     </div>
   )
