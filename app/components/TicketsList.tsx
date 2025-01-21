@@ -3,7 +3,6 @@ import { Ticket } from "@/app/types/ticket"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, X } from "lucide-react"
 import { CreateTicketModal } from "@/app/components/modals/CreateTicketModal"
-import { EditTicketModal } from "@/app/components/modals/EditTicketModal"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Dialog,
@@ -14,7 +13,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { useUser } from "@/app/hooks/useUser"
 import { TicketFilters, UserOption } from "@/app/types/filters"
 import {
@@ -38,7 +36,6 @@ interface TicketsListProps {
 export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActions = true }: TicketsListProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null)
   const [filters, setFilters] = useState<TicketFilters>({})
@@ -420,7 +417,7 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
               isSelected={selectedTickets.has(ticket.id)}
               onSelect={toggleTicketSelection}
               onStatusChange={user?.role !== 'customer' ? handleUpdateTicketStatus : undefined}
-              onEdit={canModifyTicket(ticket) ? () => setEditingTicket(ticket) : undefined}
+              onTicketUpdated={handleTicketUpdated}
               onDelete={canModifyTicket(ticket) ? () => {
                 setTicketToDelete(ticket)
                 setShowDeleteDialog(true)
@@ -430,13 +427,6 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
           ))}
         </div>
       )}
-
-      <EditTicketModal
-        ticket={editingTicket}
-        open={!!editingTicket}
-        onOpenChange={(open) => !open && setEditingTicket(null)}
-        onTicketUpdated={handleTicketUpdated}
-      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
