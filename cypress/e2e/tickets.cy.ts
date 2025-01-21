@@ -291,5 +291,91 @@ describe("Ticket Operations", () => {
       cy.contains('Success').should('be.visible')
       cy.contains('Test Employee Ticket').should('not.exist')
     })
+
+    it("should update ticket status from the list view", () => {
+      // Navigate to tickets page
+      cy.visit('/employee/tickets')
+      cy.url().should('include', '/employee/tickets')
+      
+      // Create a test ticket first
+      cy.contains('Create New Ticket').click()
+      cy.get('#subject').type('Status Test Ticket')
+      cy.get('#description').type('Testing status updates')
+      cy.get("form").within(() => {
+        cy.get("[role='combobox']").click()
+      })
+      cy.get("[role='listbox']").within(() => {
+        cy.contains("Medium").click()
+      })
+      cy.get("form").within(() => {
+        cy.contains('Create Ticket').click()
+      })
+
+      // Verify the ticket is created with 'open' status
+      cy.contains('Status Test Ticket').should('be.visible')
+      cy.get('span').contains('open').should('be.visible')
+
+      // Update status through dropdown
+      cy.get('span').contains('open').click()
+      cy.get('[role="listbox"]').within(() => {
+        cy.contains('Pending').click()
+      })
+      cy.contains('Ticket status updated successfully').should('be.visible')
+      cy.get('span').contains('pending').should('be.visible')
+
+      // Update to resolved
+      cy.get('span').contains('pending').click()
+      cy.get('[role="listbox"]').within(() => {
+        cy.contains('Resolved').click()
+      })
+      cy.contains('Ticket status updated successfully').should('be.visible')
+      cy.get('span').contains('resolved').should('be.visible')
+
+      // Clean up
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Delete').click()
+      cy.get('button').contains('Delete').click()
+    })
+
+    it("should handle status update errors gracefully", () => {
+      // Navigate to tickets page
+      cy.visit('/employee/tickets')
+      cy.url().should('include', '/employee/tickets')
+      
+      // Create a test ticket first
+      cy.contains('Create New Ticket').click()
+      cy.get('#subject').type('Error Test Ticket')
+      cy.get('#description').type('Testing error handling')
+      cy.get("form").within(() => {
+        cy.get("[role='combobox']").click()
+      })
+      cy.get("[role='listbox']").within(() => {
+        cy.contains("Medium").click()
+      })
+      cy.get("form").within(() => {
+        cy.contains('Create Ticket').click()
+      })
+
+      // Intercept the status update request and force it to fail
+      cy.intercept('PATCH', '/api/tickets', {
+        statusCode: 500,
+        body: { error: "Failed to update status" }
+      }).as('updateStatus')
+
+      // Try to update status
+      cy.get('span').contains('open').click()
+      cy.get('[role="listbox"]').within(() => {
+        cy.contains('Pending').click()
+      })
+
+      // Verify error message
+      cy.contains('Failed to update ticket status').should('be.visible')
+      cy.get('span').contains('open').should('be.visible') // Status should remain unchanged
+
+      // Clean up
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Delete').click()
+      cy.get('button').contains('Delete').click()
+    })
   })
 }) 
