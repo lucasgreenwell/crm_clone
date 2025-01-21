@@ -396,12 +396,13 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
       )}
 
       {loading ? (
-        <div>Loading tickets...</div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Loading tickets...</p>
+        </div>
       ) : filteredTickets.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium">No tickets found</h3>
-          <p className="text-muted-foreground mt-2">
-            {Object.keys(filters).length > 0 
+        <div className="text-center py-8" data-testid="empty-state">
+          <p className="text-muted-foreground">
+            {Object.keys(filters).length > 0
               ? "Try adjusting your filters"
               : "Create a new ticket to get started"}
           </p>

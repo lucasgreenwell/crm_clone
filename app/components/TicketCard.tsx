@@ -59,6 +59,7 @@ export function TicketCard({
       <div 
         className="p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
         onClick={handleClick}
+        data-testid="ticket-card"
       >
         <div className="flex justify-between items-start gap-4">
           {showCheckbox && onSelect && (

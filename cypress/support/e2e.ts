@@ -1,4 +1,5 @@
 import '@testing-library/cypress/add-commands'
+import './commands'
 
 // Cypress command to login programmatically
 Cypress.Commands.add('login', (email: string, password: string) => {
@@ -18,6 +19,8 @@ declare global {
     interface Chainable {
       login(email: string, password: string): Chainable<void>
       isLoggedIn(): Chainable<void>
+      loginAsCustomer(): Chainable<void>
+      loginAsEmployee(): Chainable<void>
     }
   }
 } 

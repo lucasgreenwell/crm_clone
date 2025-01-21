@@ -4,6 +4,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select"
 
 interface StatusSelectProps {
@@ -25,35 +26,31 @@ const getStatusStyles = (status: Ticket['status']) => ({
 
 export function StatusSelect({ value, onValueChange, triggerClassName }: StatusSelectProps) {
   return (
-    <Select
-      value={value}
-      onValueChange={(value) => onValueChange(value as Ticket['status'])}
-    >
+    <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger 
-        className={triggerClassName || "border-0 p-0 h-auto hover:bg-transparent focus:ring-0 focus:ring-offset-0"}
+        className={triggerClassName}
+        data-testid="status-select"
         style={getStatusStyles(value)}
       >
-        <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize">
-          {value}
-        </span>
+        <SelectValue placeholder="Select status" />
       </SelectTrigger>
       <SelectContent className="p-0 min-w-0">
-        <SelectItem value="open" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden">
+        <SelectItem value="open" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden" data-testid="status-option-open">
           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize w-full" style={getStatusStyles('open')}>
             Open
           </span>
         </SelectItem>
-        <SelectItem value="pending" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden">
+        <SelectItem value="pending" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden" data-testid="status-option-pending">
           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize w-full" style={getStatusStyles('pending')}>
             Pending
           </span>
         </SelectItem>
-        <SelectItem value="resolved" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden">
+        <SelectItem value="resolved" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden" data-testid="status-option-resolved">
           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize w-full" style={getStatusStyles('resolved')}>
             Resolved
           </span>
         </SelectItem>
-        <SelectItem value="closed" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden">
+        <SelectItem value="closed" className="py-1 px-0 m-0 data-[highlighted]:bg-transparent focus:bg-transparent data-[state=checked]:opacity-100 opacity-40 [&>span:first-child]:hidden" data-testid="status-option-closed">
           <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize w-full" style={getStatusStyles('closed')}>
             Closed
           </span>

@@ -93,7 +93,7 @@ export function CreateTicketModal({ trigger, onTicketCreated, defaultAssignee }:
       <DialogTrigger asChild>
         {trigger || <Button>Create Ticket</Button>}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px]" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Create New Ticket</DialogTitle>
           <DialogDescription>
@@ -108,11 +108,19 @@ export function CreateTicketModal({ trigger, onTicketCreated, defaultAssignee }:
             </label>
             <Input
               id="subject"
+              name="subject"
               placeholder="Subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               required
+              aria-required="true"
+              data-testid="subject-input"
             />
+            {subject === "" && (
+              <p className="text-sm text-destructive" data-testid="subject-error">
+                This field is required
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -121,12 +129,20 @@ export function CreateTicketModal({ trigger, onTicketCreated, defaultAssignee }:
             </label>
             <Textarea
               id="description"
+              name="description"
               placeholder="Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               required
+              aria-required="true"
+              data-testid="description-input"
               className="min-h-[150px]"
             />
+            {description === "" && (
+              <p className="text-sm text-destructive" data-testid="description-error">
+                This field is required
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

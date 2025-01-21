@@ -158,12 +158,14 @@ export function ViewTicketModal({
                   onChange={(e) => setEditValues(prev => ({ ...prev, subject: e.target.value }))}
                   className="text-xl font-semibold"
                   autoFocus
+                  data-testid="edit-subject-input"
                 />
                 <div className="flex items-center gap-2">
                   <Button 
                     size="sm" 
                     onClick={() => handleSave('subject')}
                     disabled={isSubmitting}
+                    data-testid="save-subject-button"
                   >
                     Save
                   </Button>
@@ -180,6 +182,7 @@ export function ViewTicketModal({
               <div 
                 className="group relative cursor-pointer"
                 onClick={() => canEdit && startEditing('subject')}
+                data-testid="edit-subject"
               >
                 <h2 className="text-xl font-semibold pr-8">{ticket.subject}</h2>
                 {canEdit && (
@@ -267,6 +270,7 @@ export function ViewTicketModal({
                       size="sm" 
                       onClick={() => handleSave('description')}
                       disabled={isSubmitting}
+                      data-testid="save-description-button"
                     >
                       Save
                     </Button>
@@ -283,6 +287,7 @@ export function ViewTicketModal({
                 <div 
                   className="group relative cursor-pointer"
                   onClick={() => canEdit && startEditing('description')}
+                  data-testid="edit-description"
                 >
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap pr-8">
                     {ticket.description}
