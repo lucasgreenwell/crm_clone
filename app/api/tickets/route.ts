@@ -15,6 +15,7 @@ export async function POST(request: Request) {
         channel: data.channel,
         status: data.status,
         created_by: data.created_by,
+        assigned_to: data.assigned_to,
       },
     ])
 

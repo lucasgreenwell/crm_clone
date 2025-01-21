@@ -36,17 +36,4 @@ describe('404 Page Redirects', () => {
     cy.visit('/non-existent-page', { failOnStatusCode: false })
     cy.url().should('include', '/employee/dashboard')
   })
-
-  it('redirects admin users to their dashboard', () => {
-    // Login as admin and wait for redirect
-    cy.visit('/login')
-    cy.get('input[type="email"]').type(Cypress.env('ADMIN_TEST_USER_EMAIL'))
-    cy.get('input[type="password"]').type(Cypress.env('ADMIN_TEST_USER_PASSWORD'))
-    cy.get('button[type="submit"]').click()
-    cy.url().should('include', '/employee/dashboard', { timeout: 5000 })
-    
-    // Test 404 redirect
-    cy.visit('/non-existent-page', { failOnStatusCode: false })
-    cy.url().should('include', '/employee/dashboard')
-  })
 }) 

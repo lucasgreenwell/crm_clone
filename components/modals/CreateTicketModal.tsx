@@ -27,21 +27,19 @@ type Priority = Ticket["priority"]
 type Channel = Ticket["channel"]
 
 interface CreateTicketModalProps {
-  onTicketCreated?: (ticket: Ticket) => void
   trigger?: React.ReactNode
+  onTicketCreated?: (ticket: Ticket) => void
+  defaultAssignee?: string
 }
 
-export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModalProps) {
+export function CreateTicketModal({ trigger, onTicketCreated, defaultAssignee }: CreateTicketModalProps) {
   const { user } = useUser()
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    subject: "",
-    description: "",
-    priority: "low" as Priority,
-    channel: "web" as Channel,
-  })
+  const [subject, setSubject] = useState("")
+  const [description, setDescription] = useState("")
+  const [priority, setPriority] = useState("low")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,11 +49,17 @@ export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModa
     try {
       const response = await fetch("/api/tickets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          ...formData,
-          created_by: user.id,
+          subject,
+          description,
+          priority,
           status: "open",
+          channel: "web",
+          created_by: user.id,
+          assigned_to: defaultAssignee,
         }),
       })
 
@@ -63,28 +67,20 @@ export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModa
         throw new Error("Failed to create ticket")
       }
 
-      const newTicket = await response.json()
-      
+      const ticket = await response.json()
       toast({
         title: "Success",
         description: "Ticket created successfully!",
       })
-      
-      if (onTicketCreated) {
-        onTicketCreated(newTicket)
-      }
-      
+      onTicketCreated?.(ticket)
       setOpen(false)
-      setFormData({
-        subject: "",
-        description: "",
-        priority: "low",
-        channel: "web",
-      })
+      setSubject("")
+      setDescription("")
+      setPriority("low")
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create ticket. Please try again.",
+        description: "Failed to create ticket",
         variant: "destructive",
       })
     } finally {
@@ -112,10 +108,9 @@ export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModa
             </label>
             <Input
               id="subject"
-              value={formData.subject}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, subject: e.target.value }))
-              }
+              placeholder="Subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
               required
             />
           </div>
@@ -126,10 +121,9 @@ export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModa
             </label>
             <Textarea
               id="description"
-              value={formData.description}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, description: e.target.value }))
-              }
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               required
               className="min-h-[150px]"
             />
@@ -140,13 +134,11 @@ export function CreateTicketModal({ onTicketCreated, trigger }: CreateTicketModa
               Priority
             </label>
             <Select
-              value={formData.priority}
-              onValueChange={(value: Priority) =>
-                setFormData((prev) => ({ ...prev, priority: value }))
-              }
+              value={priority}
+              onValueChange={setPriority}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select priority" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Low</SelectItem>
