@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Ticket } from "@/app/types/ticket"
 import { Button } from "@/components/ui/button"
-import { Plus, MoreVertical, Pencil, Trash } from "lucide-react"
+import { Plus, MoreVertical, Pencil, Trash, Search, X } from "lucide-react"
 import { CreateTicketModal } from "@/app/components/modals/CreateTicketModal"
 import { useToast } from "@/components/ui/use-toast"
 import {
@@ -22,6 +22,15 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useUser } from "@/app/hooks/useUser"
+import { TicketFilters, UserOption } from "@/app/types/filters"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 interface TicketsListProps {
   fetchTickets: () => Promise<Ticket[]>
@@ -35,8 +44,41 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [ticketToDelete, setTicketToDelete] = useState<Ticket | null>(null)
+  const [filters, setFilters] = useState<TicketFilters>({})
+  const [users, setUsers] = useState<UserOption[]>([])
   const { toast } = useToast()
   const { user } = useUser()
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      // Get unique user IDs from tickets
+      const uniqueUserIds = new Set<string>()
+      tickets.forEach(ticket => {
+        if (ticket.created_by) uniqueUserIds.add(ticket.created_by)
+        if (ticket.assigned_to) uniqueUserIds.add(ticket.assigned_to)
+      })
+
+      if (uniqueUserIds.size === 0) return
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', Array.from(uniqueUserIds))
+        .order('display_name')
+
+      if (error) {
+        console.error('Error loading users:', error)
+        return
+      }
+
+      setUsers(data.map(u => ({ id: u.user_id, display_name: u.display_name })))
+    }
+
+    if (tickets.length > 0) {
+      loadUsers()
+    }
+  }, [tickets])
 
   useEffect(() => {
     const loadTickets = async () => {
@@ -47,6 +89,34 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
 
     loadTickets()
   }, [fetchTickets])
+
+  // Get unique lists of users for each dropdown
+  const creatorUsers = users.filter(u => 
+    tickets.some(t => t.created_by === u.id)
+  )
+
+  const assigneeUsers = users.filter(u => 
+    tickets.some(t => t.assigned_to === u.id)
+  )
+
+  const filteredTickets = tickets.filter(ticket => {
+    if (filters.search && !ticket.subject.toLowerCase().includes(filters.search.toLowerCase()) &&
+        !ticket.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+      return false
+    }
+    if (filters.status && ticket.status !== filters.status) {
+      return false
+    }
+    if (filters.created_by && ticket.created_by !== filters.created_by) {
+      return false
+    }
+    if (filters.assigned_to === 'unassigned') {
+      if (ticket.assigned_to !== null) return false
+    } else if (filters.assigned_to && ticket.assigned_to !== filters.assigned_to) {
+      return false
+    }
+    return true
+  })
 
   const handleTicketCreated = (newTicket: Ticket) => {
     setTickets((prev) => [newTicket, ...prev])
@@ -110,6 +180,11 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
     return user?.id === ticket.created_by
   }
 
+  const getUserDisplayName = (userId: string) => {
+    const user = users.find(u => u.id === userId)
+    return user?.display_name || 'Unknown User'
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -126,16 +201,103 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
         />
       </div>
 
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tickets..."
+                className="pl-8"
+                value={filters.search || ''}
+                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              />
+              {filters.search && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-2 h-4 w-4 p-0"
+                  onClick={() => setFilters(prev => ({ ...prev, search: undefined }))}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <Select
+            value={filters.status}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as any || undefined }))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="open">Open</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="resolved">Resolved</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.created_by}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, created_by: value === 'all' ? undefined : value }))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by creator" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All creators</SelectItem>
+              {creatorUsers.map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.display_name || 'Unknown User'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filters.assigned_to}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, assigned_to: value === 'all' ? undefined : value }))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All assignees</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {assigneeUsers.map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  {user.display_name || 'Unknown User'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {Object.keys(filters).length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setFilters({})}
+              size="sm"
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div>Loading tickets...</div>
-      ) : tickets.length === 0 ? (
+      ) : filteredTickets.length === 0 ? (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium">No tickets found</h3>
-          <p className="text-muted-foreground mt-2">Create a new ticket to get started</p>
+          <p className="text-muted-foreground mt-2">
+            {Object.keys(filters).length > 0 
+              ? "Try adjusting your filters"
+              : "Create a new ticket to get started"}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {tickets.map((ticket) => (
+          {filteredTickets.map((ticket) => (
             <div
               key={ticket.id}
               className="p-4 border rounded-lg hover:border-primary transition-colors"
@@ -146,6 +308,15 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
                   <p className="text-sm text-muted-foreground mt-1">
                     {ticket.description}
                   </p>
+                  <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
+                    <span>Created by: {getUserDisplayName(ticket.created_by)}</span>
+                    {ticket.assigned_to && (
+                      <>
+                        <span>•</span>
+                        <span>Assigned to: {getUserDisplayName(ticket.assigned_to)}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col items-end">
                   <div className="flex items-center gap-2">

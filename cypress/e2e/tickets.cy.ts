@@ -50,8 +50,10 @@ describe("Ticket Operations", () => {
       cy.get("#subject").should('be.visible').clear().type("Test Ticket")
       cy.get("#description").should('be.visible').clear().type("This is a test ticket description")
       
-      // Select priority - using data-state to ensure the select is closed before clicking
-      cy.get("[role='combobox']").should('be.visible').click()
+      // Select priority - using a more specific selector
+      cy.get("form").within(() => {
+        cy.get("[role='combobox']").should('be.visible').click()
+      })
       cy.get("[role='listbox']").should('be.visible').within(() => {
         cy.contains("Medium").click()
       })
@@ -134,6 +136,106 @@ describe("Ticket Operations", () => {
       // Modal should still be open
       cy.get("div[role='dialog']").should("be.visible")
     })
+
+    it('should allow filtering tickets', () => {
+      // Click the create ticket button
+      cy.contains("Create New Ticket").should('be.visible').click()
+      
+      // Wait for modal to be fully visible
+      cy.get("div[role='dialog']").should("be.visible")
+      cy.get("h2").contains("Create New Ticket").should("be.visible")
+      
+      // Fill out the form
+      cy.get("#subject").should('be.visible').clear().type("Test Filter Ticket")
+      cy.get("#description").should('be.visible').clear().type("This is a test ticket for filters")
+      
+      // Select priority - using a more specific selector
+      cy.get("form").within(() => {
+        cy.get("[role='combobox']").should('be.visible').click()
+      })
+      cy.get("[role='listbox']").should('be.visible').within(() => {
+        cy.contains("Medium").click()
+      })
+      
+      // Submit the form
+      cy.get("form").within(() => {
+        cy.contains("Create Ticket").should('be.visible').click()
+      })
+      
+      // Should show success toast
+      cy.contains("Ticket created successfully!").should("be.visible")
+      
+      // Modal should be closed
+      cy.get("div[role='dialog']").should("not.exist")
+      
+      // New ticket should appear in the list
+      cy.contains("Test Filter Ticket").should("be.visible")
+      
+      // Test search filter
+      cy.get('input[placeholder="Search tickets..."]').type('Filter')
+      cy.get('button').contains('Clear filters').should('be.visible')
+      cy.contains("Test Filter Ticket").should("be.visible")
+      cy.get('input[placeholder="Search tickets..."]').clear()
+
+      // Test status filter
+      cy.get('button[role="combobox"]').first().click()
+      cy.get('[role="option"]').contains('Open').click()
+      cy.contains("Test Filter Ticket").should("be.visible")
+      cy.get('button').contains('Clear filters').click()
+      cy.get('button[role="combobox"]').first().click()
+      cy.get('[role="option"]').contains('All statuses').click()
+
+      // Test creator filter
+      cy.get('button[role="combobox"]').eq(1).click()
+      cy.get('[role="option"]').contains('All creators').click()
+      cy.contains("Test Filter Ticket").should("be.visible")
+      cy.get('button[role="combobox"]').eq(1).click()
+      cy.get('[role="option"]').not(':contains("All creators")').first().click()
+      cy.get('button').contains('Clear filters').click()
+
+      // Test assignee filter
+      cy.get('button[role="combobox"]').eq(2).click()
+      cy.get('[role="option"]').contains('All assignees').click()
+      cy.contains("Test Filter Ticket").should("be.visible")
+      cy.get('button[role="combobox"]').eq(2).click()
+      cy.get('[role="option"]').contains('Unassigned').click()
+      cy.get('button').contains('Clear filters').click()
+
+      // Test multiple filters
+      cy.get('input[placeholder="Search tickets..."]').type('Filter')
+      cy.get('button[role="combobox"]').first().click()
+      cy.get('[role="option"]').contains('Open').click()
+      cy.contains("Test Filter Ticket").should("be.visible")
+      cy.get('button').contains('Clear filters').click()
+
+      // Clean up - delete the test ticket
+      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.contains('Delete').click()
+      cy.get('button').contains('Delete').click()
+      
+      // Verify deletion
+      cy.contains('Success').should('be.visible')
+      cy.contains('Test Filter Ticket').should('not.exist')
+    })
+
+    it('should show appropriate message when no tickets match filters', () => {
+      // First ensure we have no tickets
+      cy.intercept('GET', '**/rest/v1/tickets?*', {
+        statusCode: 200,
+        body: []
+      }).as('getTickets')
+      
+      cy.visit('/customer/tickets')
+      cy.wait('@getTickets')
+      
+      // Enter a search term that won't match any tickets
+      cy.get('input[placeholder="Search tickets..."]').type('xyzabc123')
+      cy.contains('Try adjusting your filters').should('be.visible')
+      
+      // Clear filters and verify empty state message changes
+      cy.get('button').contains('Clear filters').click()
+      cy.contains('Create a new ticket to get started').should('be.visible')
+    })
   })
 
   describe("Employee Tickets", () => {
@@ -159,19 +261,21 @@ describe("Ticket Operations", () => {
       cy.get('h1').contains('My Assigned Tickets').should('be.visible')
 
       // Create a ticket
-      cy.contains('Create New Ticket').click()
-      cy.get('#subject').type('Test Employee Ticket')
-      cy.get('#description').type('This is a test ticket')
-      cy.get("[role='combobox']").click()
-      cy.get("[role='listbox']").within(() => {
+      cy.contains('Create New Ticket').should('be.visible').click()
+      cy.get('#subject').should('be.visible').type('Test Employee Ticket')
+      cy.get('#description').should('be.visible').type('This is a test ticket')
+      cy.get("form").within(() => {
+        cy.get("[role='combobox']").should('be.visible').click()
+      })
+      cy.get("[role='listbox']").should('be.visible').within(() => {
         cy.contains("Medium").click()
       })
       cy.get("form").within(() => {
-        cy.contains('Create Ticket').click()
+        cy.contains('Create Ticket').should('be.visible').click()
       })
 
       // Update the ticket
-      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.get('button[aria-label="Ticket actions"]').should('be.visible').first().click()
       cy.contains('Edit').click()
       cy.get('#subject').clear().type('Updated Employee Ticket')
       cy.get('form').within(() => {
@@ -179,9 +283,9 @@ describe("Ticket Operations", () => {
       })
 
       // Delete the ticket
-      cy.get('button[aria-label="Ticket actions"]').first().click()
+      cy.get('button[aria-label="Ticket actions"]').should('be.visible').first().click()
       cy.contains('Delete').click()
-      cy.get('button').contains('Delete').click()
+      cy.get('button').contains('Delete').should('be.visible').click()
       
       // Verify deletion
       cy.contains('Success').should('be.visible')
