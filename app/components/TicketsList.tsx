@@ -461,6 +461,7 @@ export function TicketsList({ fetchTickets, title, defaultAssignee }: TicketsLis
                 {user?.role !== 'customer' && (
                   <div className="pt-1">
                     <Checkbox
+                      data-testid="ticket-select-checkbox"
                       checked={selectedTickets.has(ticket.id)}
                       onCheckedChange={() => toggleTicketSelection(ticket.id)}
                     />
