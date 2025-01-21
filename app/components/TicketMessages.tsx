@@ -5,16 +5,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useUser } from "@/app/hooks/useUser"
 import { Checkbox } from "@/components/ui/checkbox"
-
-interface TicketMessage {
-  id: string
-  ticket_id: string
-  sender_id: string
-  message: string
-  internal_only: boolean
-  created_at: string
-  updated_at: string
-}
+import { Pencil, Trash } from "lucide-react"
+import { TicketMessage } from "@/app/types/ticket"
 
 interface TicketMessagesProps {
   ticketId: string
@@ -26,6 +18,8 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
   const [newMessage, setNewMessage] = useState("")
   const [isInternalOnly, setIsInternalOnly] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingMessage, setEditingMessage] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
   const { toast } = useToast()
   const { user } = useUser()
   const supabase = createClientComponentClient()
@@ -77,16 +71,19 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
     setIsSubmitting(true)
 
     try {
-      const { error } = await supabase
-        .from('ticket_messages')
-        .insert({
+      const response = await fetch("/api/ticket-messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           ticket_id: ticketId,
-          sender_id: user.id,
           message: newMessage.trim(),
           internal_only: isInternalOnly,
-        })
+        }),
+      })
 
-      if (error) throw error
+      if (!response.ok) throw new Error("Failed to send message")
 
       setNewMessage("")
       setIsInternalOnly(false)
@@ -103,6 +100,65 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleStartEdit = (message: TicketMessage) => {
+    setEditingMessage(message.id)
+    setEditValue(message.message)
+  }
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editValue.trim()) return
+
+    try {
+      const response = await fetch("/api/ticket-messages", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: messageId,
+          message: editValue.trim(),
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update message")
+
+      setEditingMessage(null)
+      toast({
+        title: "Success",
+        description: "Message updated successfully",
+      })
+    } catch (error) {
+      console.error('Error updating message:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update message",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDelete = async (messageId: string) => {
+    try {
+      const response = await fetch(`/api/ticket-messages?id=${messageId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) throw new Error("Failed to delete message")
+
+      toast({
+        title: "Success",
+        description: "Message deleted successfully",
+      })
+    } catch (error) {
+      console.error('Error deleting message:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive",
+      })
     }
   }
 
@@ -133,11 +189,59 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
                   </span>
                 )}
               </div>
-              <span className="text-xs text-gray-500">
-                {formatDate(message.created_at)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  {formatDate(message.created_at)}
+                </span>
+                {user?.id === message.sender_id && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6"
+                      onClick={() => handleStartEdit(message)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(message.id)}
+                    >
+                      <Trash className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-gray-700 whitespace-pre-wrap">{message.message}</p>
+            {editingMessage === message.id ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="min-h-[100px]"
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleSaveEdit(message.id)}
+                  >
+                    Save
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => setEditingMessage(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-700 whitespace-pre-wrap">{message.message}</p>
+            )}
           </div>
         ))}
       </div>
