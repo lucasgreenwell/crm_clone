@@ -6,3 +6,6 @@ Any reads from the database should be done through the supabase client and have 
 
 RULE 3:
 All types should be defined in the `types` directory. Never create a type within a component file.
+
+RULE 4:
+All new UI features should have relevant tests added to our cypress test suite.
