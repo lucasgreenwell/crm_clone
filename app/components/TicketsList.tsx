@@ -31,9 +31,19 @@ interface TicketsListProps {
   title: string
   defaultAssignee?: string
   showBulkActions?: boolean
+  subscriptionFilter?: {
+    column: string
+    value: string
+  }
 }
 
-export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActions = true }: TicketsListProps) {
+export function TicketsList({ 
+  fetchTickets, 
+  title, 
+  defaultAssignee, 
+  showBulkActions = true,
+  subscriptionFilter
+}: TicketsListProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -85,7 +95,41 @@ export function TicketsList({ fetchTickets, title, defaultAssignee, showBulkActi
     }
 
     loadTickets()
-  }, [fetchTickets])
+
+    // Set up real-time subscription
+    let query = supabase
+      .channel('tickets-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tickets',
+          ...(subscriptionFilter && {
+            filter: `${subscriptionFilter.column}=eq.${subscriptionFilter.value}`
+          })
+        },
+        async (payload) => {
+          console.log('Received real-time update:', payload)
+          
+          if (payload.eventType === 'INSERT') {
+            const newTicket = payload.new as Ticket
+            setTickets(prev => [newTicket, ...prev])
+          } else if (payload.eventType === 'DELETE') {
+            const deletedTicket = payload.old as Ticket
+            setTickets(prev => prev.filter(t => t.id !== deletedTicket.id))
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedTicket = payload.new as Ticket
+            setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.channel('tickets-changes').unsubscribe()
+    }
+  }, [fetchTickets, subscriptionFilter])
 
   const creatorUsers = users.filter(u => 
     tickets.some(t => t.created_by === u.id)

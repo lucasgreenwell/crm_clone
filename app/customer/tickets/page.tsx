@@ -27,5 +27,14 @@ export default function CustomerTickets() {
 
   if (!user) return null
 
-  return <TicketsList fetchTickets={fetchTickets} title="My Tickets" />
+  return (
+    <TicketsList 
+      fetchTickets={fetchTickets} 
+      title="My Tickets" 
+      subscriptionFilter={{
+        column: 'created_by',
+        value: user.id
+      }}
+    />
+  )
 } 
