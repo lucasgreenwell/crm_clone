@@ -18,6 +18,7 @@ export function EmbedChatWidget({ isAuthenticated }: EmbedChatWidgetProps) {
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showChat, setShowChat] = useState(false)
+  const [oncallEmployee, setOncallEmployee] = useState<{ user_id: string; display_name: string } | null>(null)
   const supabase = createClientComponentClient()
   const { toast } = useToast()
 
@@ -32,6 +33,47 @@ export function EmbedChatWidget({ isAuthenticated }: EmbedChatWidgetProps) {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
+
+  useEffect(() => {
+    const fetchOncallEmployee = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .eq('is_oncall', true)
+        .single()
+
+      if (error) {
+        console.error('Error fetching oncall employee:', error)
+        toast({
+          title: "Error",
+          description: "Unable to connect to support at this time",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setOncallEmployee(data)
+    }
+
+    fetchOncallEmployee()
+
+    // Subscribe to changes in oncall status
+    const channel = supabase
+      .channel('oncall-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'profiles',
+        filter: 'is_oncall=true'
+      }, () => {
+        fetchOncallEmployee()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [supabase, toast])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -149,8 +191,13 @@ export function EmbedChatWidget({ isAuthenticated }: EmbedChatWidgetProps) {
     )
   }
 
-  // Use the specified support agent ID
-  const SUPPORT_AGENT_ID = "bce7542a-c8ad-42b2-8cd9-9251ca6dcc27"
+  if (!oncallEmployee) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <p className="text-muted-foreground">No support agent available at this time.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -159,8 +206,8 @@ export function EmbedChatWidget({ isAuthenticated }: EmbedChatWidgetProps) {
       </div>
       <div className="flex-1 overflow-hidden px-4 pb-4">
         <ChatMessages
-          otherUserId={SUPPORT_AGENT_ID}
-          getUserDisplayName={(id) => id === SUPPORT_AGENT_ID ? "Support Agent" : "You"}
+          otherUserId={oncallEmployee.user_id}
+          getUserDisplayName={(id) => id === oncallEmployee.user_id ? oncallEmployee.display_name : "You"}
         />
       </div>
     </div>
