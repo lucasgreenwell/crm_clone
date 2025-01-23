@@ -62,6 +62,13 @@ export function Header() {
               Reports
             </Link>
           </li>
+          {user.role === 'admin' && (
+            <li>
+              <Link href="/admin/teams" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                Teams
+              </Link>
+            </li>
+          )}
         </ul>
       </nav>
     )

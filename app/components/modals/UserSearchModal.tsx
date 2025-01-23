@@ -16,14 +16,15 @@ interface UserSearchModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onUserSelect: (user: User) => void
+  mode?: 'chat' | 'team' // New prop to determine search mode
 }
 
-export function UserSearchModal({ open, onOpenChange, onUserSelect }: UserSearchModalProps) {
+export function UserSearchModal({ open, onOpenChange, onUserSelect, mode = 'chat' }: UserSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const debouncedSearch = useDebounce(searchQuery, 100) // Reduced debounce time since it's client-side
+  const debouncedSearch = useDebounce(searchQuery, 100)
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -32,8 +33,14 @@ export function UserSearchModal({ open, onOpenChange, onUserSelect }: UserSearch
         const response = await fetch('/api/users/search')
         if (!response.ok) throw new Error("Failed to fetch users")
         const data = await response.json()
-        setAllUsers(data)
-        setFilteredUsers(data)
+        
+        // Filter out customer accounts if in team mode
+        const users = mode === 'team' 
+          ? data.filter((user: User) => user.role !== 'customer')
+          : data
+        
+        setAllUsers(users)
+        setFilteredUsers(users)
       } catch (error) {
         console.error("Error fetching users:", error)
       } finally {
@@ -44,7 +51,7 @@ export function UserSearchModal({ open, onOpenChange, onUserSelect }: UserSearch
     if (open) {
       fetchUsers()
     }
-  }, [open])
+  }, [open, mode])
 
   // Filter users based on search query
   useEffect(() => {
@@ -65,7 +72,9 @@ export function UserSearchModal({ open, onOpenChange, onUserSelect }: UserSearch
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Start New Chat</DialogTitle>
+          <DialogTitle>
+            {mode === 'team' ? 'Add Team Member' : 'Start New Chat'}
+          </DialogTitle>
         </DialogHeader>
         <Command className="rounded-lg border shadow-md">
           <CommandInput
