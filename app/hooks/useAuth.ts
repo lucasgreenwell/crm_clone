@@ -30,5 +30,4 @@ export function useAuth() {
   }
 
   return { user, signOut } as const
-}
-
+} 

@@ -4,79 +4,82 @@ import { cookies } from "next/headers"
 
 export async function POST(request: Request) {
   try {
+    const body = await request.json()
     const supabase = createRouteHandlerClient({ cookies })
-    const data = await request.json()
 
-    const { error } = await supabase.from("tickets").insert([
-      {
-        subject: data.subject,
-        description: data.description,
-        priority: data.priority,
-        channel: data.channel,
-        status: data.status,
-        created_by: data.created_by,
-        assigned_to: data.assigned_to,
-      },
-    ])
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Fetch the created ticket to return it
-    const { data: ticket, error: fetchError } = await supabase
-      .from("tickets")
-      .select("*")
-      .eq("created_by", data.created_by)
-      .order("created_at", { ascending: false })
-      .limit(1)
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        ...body,
+        created_by: user.id,
+      })
+      .select()
       .single()
 
-    if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
-    }
+    if (error) throw error
 
-    return NextResponse.json(ticket)
+    return NextResponse.json(data)
   } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error('Error creating ticket:', error)
+    return new NextResponse("Internal Server Error", { status: 500 })
   }
 }
 
 export async function PATCH(request: Request) {
   try {
+    const ticket = await request.json()
     const supabase = createRouteHandlerClient({ cookies })
-    const data = await request.json()
-    const { id, ...updates } = data
 
-    const { error } = await supabase
-      .from("tickets")
-      .update(updates)
-      .eq("id", id)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Fetch the updated ticket to return it
-    const { data: ticket, error: fetchError } = await supabase
-      .from("tickets")
-      .select("*")
-      .eq("id", id)
+    // Check if the status is being updated to resolved or closed
+    const { data: currentTicket } = await supabase
+      .from('tickets')
+      .select('status, created_by')
+      .eq('id', ticket.id)
       .single()
 
-    if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    const { data: updatedTicket, error: updateError } = await supabase
+      .from('tickets')
+      .update(ticket)
+      .eq('id', ticket.id)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+
+    // If status is being changed to resolved or closed, create feedback entry
+    if (
+      currentTicket &&
+      currentTicket.status !== ticket.status &&
+      (ticket.status === 'resolved' || ticket.status === 'closed')
+    ) {
+      const { error: feedbackError } = await supabase
+        .from('ticket_feedback')
+        .insert({
+          ticket_id: ticket.id,
+          created_by: currentTicket.created_by,
+          rating: null,
+          feedback: null,
+        })
+
+      if (feedbackError) {
+        console.error('Error creating feedback entry:', feedbackError)
+      }
     }
 
-    return NextResponse.json(ticket)
+    return NextResponse.json(updatedTicket)
   } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error('Error updating ticket:', error)
+    return new NextResponse("Internal Server Error", { status: 500 })
   }
 }
 

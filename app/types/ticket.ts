@@ -20,4 +20,14 @@ export interface TicketMessage {
   internal_only: boolean
   created_at: string
   updated_at: string
+}
+
+export interface TicketFeedback {
+  id: string
+  ticket_id: string
+  rating: number | null
+  feedback: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
 } 

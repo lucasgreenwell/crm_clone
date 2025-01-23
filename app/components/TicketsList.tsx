@@ -110,7 +110,6 @@ export function TicketsList({
           })
         },
         async (payload) => {
-          console.log('Received real-time update:', payload)
           
           if (payload.eventType === 'INSERT') {
             const newTicket = payload.new as Ticket
