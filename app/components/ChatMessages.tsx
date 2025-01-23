@@ -31,6 +31,26 @@ export function ChatMessages({ otherUserId, getUserDisplayName }: ChatMessagesPr
       }
       const data = await response.json()
       setMessages(data)
+
+      // Get IDs of unseen messages where user is recipient
+      const unseenMessageIds = data
+        .filter(message => !message.seen && message.recipient_id === user?.id)
+        .map(message => message.id)
+
+      // Update seen status if there are any unseen messages
+      if (unseenMessageIds.length > 0) {
+        try {
+          await fetch('/api/messages/seen', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ messageIds: unseenMessageIds }),
+          })
+        } catch (error) {
+          console.error('Error updating seen status:', error)
+        }
+      }
     }
 
     fetchMessages()
@@ -44,16 +64,10 @@ export function ChatMessages({ otherUserId, getUserDisplayName }: ChatMessagesPr
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `or(and(sender_id.eq.${user?.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user?.id}))`,
         },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setMessages(prev => [...prev, payload.new as Message])
-          } else if (payload.eventType === 'DELETE') {
-            setMessages(prev => prev.filter(msg => msg.id !== payload.old.id))
-          } else if (payload.eventType === 'UPDATE') {
-            setMessages(prev => prev.map(msg => msg.id === payload.new.id ? payload.new as Message : msg))
-          }
+          // Refetch messages to ensure we have the latest state
+          fetchMessages()
         }
       )
       .subscribe()

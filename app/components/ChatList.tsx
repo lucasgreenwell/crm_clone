@@ -89,7 +89,7 @@ export function ChatList() {
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `or(sender_id.eq.${user?.id},recipient_id.eq.${user?.id})`,
+          // filter: `or(sender_id.eq.${user?.id},recipient_id.eq.${user?.id})`,
         },
         () => {
           fetchConversations()
