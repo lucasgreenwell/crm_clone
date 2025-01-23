@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 import { useDebounce } from "@/app/hooks/useDebounce"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 
 interface User {
   user_id: string

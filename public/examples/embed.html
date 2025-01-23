@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Widget Example</title>
+    <style>
+        /* Example website content styling */
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        /* The only styles partners need to include */
+        #chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 600px;
+            height: 600px;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Example Website</h1>
+    <p>This is an example of how to embed the chat widget on your website.</p>
+    
+    <!-- This is all partners need to include -->
+    <iframe 
+        id="chat-widget"
+        src="http://localhost:3000/embed/chat" 
+        allow="clipboard-write"
+        title="Chat Support"
+    ></iframe>
+</body>
+</html> 

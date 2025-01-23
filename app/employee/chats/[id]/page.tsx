@@ -46,27 +46,32 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <Link href="/employee/chats">
-          <Button variant="ghost" className="mb-4">
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Back to Chats
-          </Button>
-        </Link>
-        <h1 className="text-3xl font-bold">
-          Chat with {otherUser?.display_name || 'Loading...'}
-        </h1>
-        {otherUser?.role && (
-          <p className="text-muted-foreground">{otherUser.role}</p>
+    <div className="container mx-auto h-[calc(100vh-65px)] flex flex-col">
+      <div className="border-b">
+        <div className="flex items-center gap-3 p-3">
+          <Link href="/employee/chats">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="font-semibold leading-none">
+              {otherUser?.display_name || 'Loading...'}
+            </h1>
+            {otherUser?.role && (
+              <p className="text-xs text-muted-foreground mt-0.5">{otherUser.role}</p>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden px-4 pb-6">
+        {otherUser && (
+          <ChatMessages
+            otherUserId={params.id as string}
+            getUserDisplayName={getUserDisplayName}
+          />
         )}
       </div>
-      {otherUser && (
-        <ChatMessages
-          otherUserId={params.id as string}
-          getUserDisplayName={getUserDisplayName}
-        />
-      )}
     </div>
   )
 } 

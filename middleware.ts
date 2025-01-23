@@ -71,10 +71,25 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Allow embedding of the chat widget from any domain
+  if (req.nextUrl.pathname.startsWith('/embed')) {
+    res.headers.set('X-Frame-Options', 'ALLOWALL')
+    res.headers.set('Access-Control-Allow-Origin', '*')
+  }
+
   return res
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 }
 

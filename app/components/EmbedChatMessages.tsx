@@ -9,15 +9,12 @@ import { useUser } from "@/app/hooks/useUser"
 import { MessageItem } from "@/app/components/MessageItem"
 import { Message } from "@/app/types/message"
 
-interface ChatMessagesProps {
+interface EmbedChatMessagesProps {
   otherUserId: string
   getUserDisplayName: (userId: string) => string
 }
 
-export function ChatMessages({ 
-  otherUserId, 
-  getUserDisplayName,
-}: ChatMessagesProps) {
+export function EmbedChatMessages({ otherUserId, getUserDisplayName }: EmbedChatMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -37,8 +34,8 @@ export function ChatMessages({
 
       // Get IDs of unseen messages where user is recipient
       const unseenMessageIds = data
-        .filter((message: Message) => !message.seen && message.recipient_id === user?.id)
-        .map((message: Message) => message.id)
+        .filter(message => !message.seen && message.recipient_id === user?.id)
+        .map(message => message.id)
 
       // Update seen status if there are any unseen messages
       if (unseenMessageIds.length > 0) {
@@ -101,6 +98,11 @@ export function ChatMessages({
       if (!response.ok) throw new Error("Failed to send message")
 
       setNewMessage("")
+      toast({
+        title: "Success",
+        description: "Message sent successfully",
+        duration: 3000,
+      })
     } catch (error) {
       console.error('Error sending message:', error)
       toast({
@@ -114,75 +116,22 @@ export function ChatMessages({
     }
   }
 
-  const handleEdit = async (id: string, newMessage: string) => {
-    try {
-      const response = await fetch("/api/messages", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id,
-          message: newMessage,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Failed to update message")
-
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg.id === id ? { ...msg, message: newMessage } : msg
-        )
-      )
-    } catch (error) {
-      console.error('Error updating message:', error)
-      toast({
-        title: "Error",
-        description: "Failed to update message",
-        variant: "destructive",
-        duration: 3000,
-      })
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`/api/messages?id=${id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) throw new Error("Failed to delete message")
-
-      setMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== id)
-      )
-    } catch (error) {
-      console.error('Error deleting message:', error)
-      toast({
-        title: "Error",
-        description: "Failed to delete message",
-        variant: "destructive",
-        duration: 3000,
-      })
-    }
-  }
-
   return (
-    <div className="h-full flex flex-col mt-4">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto space-y-4">
         {messages.map((message) => (
           <MessageItem
             key={message.id}
             message={message}
             userId={user?.id || ""}
             getUserDisplayName={getUserDisplayName}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
+            onEdit={undefined}  // Disable editing in embed view
+            onDelete={undefined} // Disable deletion in embed view
           />
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="pt-4 pb-2">
+      <form onSubmit={handleSubmit} className="pt-4">
         <div className="flex items-center gap-2">
           <Input
             type="text"
