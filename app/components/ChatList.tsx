@@ -59,6 +59,9 @@ export function ChatList() {
 
         if (!otherUserProfile) return
 
+        // For customers, only show conversations with support agents
+        if (user.role === 'customer' && otherUserProfile.role === 'customer') return
+
         if (!conversationsMap.has(otherUserId)) {
           conversationsMap.set(otherUserId, {
             other_user: {
@@ -101,19 +104,27 @@ export function ChatList() {
     }
   }, [user, supabase])
 
+  const getConversationLink = (conversationId: string) => {
+    return user?.role === 'customer' 
+      ? `/customer/chats/${conversationId}`
+      : `/employee/chats/${conversationId}`
+  }
+
   return (
     <div className="space-y-4">
       {conversations.map((conversation) => (
         <Link
           key={conversation.other_user.id}
-          href={`/employee/chats/${conversation.other_user.id}`}
+          href={getConversationLink(conversation.other_user.id)}
           className="block"
         >
           <div className="p-4 rounded-lg border hover:border-primary transition-colors">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium">{conversation.other_user.display_name}</h3>
-                <p className="text-sm text-muted-foreground">{conversation.other_user.role}</p>
+                <p className="text-sm text-muted-foreground">
+                  {user?.role === 'customer' ? 'Support Agent' : conversation.other_user.role}
+                </p>
               </div>
               {conversation.unread_count > 0 && (
                 <span className="px-2 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-full">

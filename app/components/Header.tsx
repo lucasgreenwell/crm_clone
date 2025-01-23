@@ -29,6 +29,11 @@ export function Header() {
                 My Tickets
               </Link>
             </li>
+            <li>
+              <Link href="/customer/chats" className="text-sm font-medium text-muted-foreground hover:text-primary">
+                Support Chats
+              </Link>
+            </li>
           </ul>
         </nav>
       )
