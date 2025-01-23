@@ -1,21 +1,29 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/app/hooks/useUser'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { TeamWithMembers } from '@/app/types/team'
+import { TeamWithMembers, TeamMember } from '@/app/types/team'
 import { Button } from '@/components/ui/button'
 import { UserPlus, ArrowLeft, Pencil } from 'lucide-react'
 import { UserSearchModal } from '@/app/components/modals/UserSearchModal'
 import { TeamMembersList } from '@/app/components/TeamMembersList'
 import { EditTeamModal } from '@/app/components/modals/EditTeamModal'
+import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 interface TeamDetailPageProps {
   params: {
     id: string
   }
 }
+
+interface ProfileRecord {
+  user_id: string
+  [key: string]: any
+}
+
+type ProfileChangesPayload = RealtimePostgresChangesPayload<ProfileRecord>
 
 export default function TeamDetailPage({ params }: TeamDetailPageProps) {
   const router = useRouter()
@@ -34,7 +42,7 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
     }
   }, [user, router])
 
-  const fetchTeam = async () => {
+  const fetchTeam = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('teams')
@@ -59,38 +67,48 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, params.id])
 
   useEffect(() => {
     fetchTeam()
 
     // Set up realtime subscription
-    const teamSubscription = supabase
-      .channel('team-detail')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'teams',
-        filter: `id=eq.${params.id}`
-      }, fetchTeam)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'team_members',
-        filter: `team_id=eq.${params.id}`
-      }, fetchTeam)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'profiles',
-        filter: `user_id=in.(${team?.members.map(m => m.user_id).join(',') || ''})`
-      }, fetchTeam)
-      .subscribe()
+    const channel = supabase.channel('team-detail')
+
+    // Subscribe to team changes
+    channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'teams',
+      filter: `id=eq.${params.id}`
+    }, fetchTeam)
+
+    // Subscribe to team member changes
+    channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'team_members',
+      filter: `team_id=eq.${params.id}`
+    }, fetchTeam)
+
+    // Subscribe to profile changes
+    channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'profiles'
+    }, (payload: ProfileChangesPayload) => {
+      // Only fetch if the changed profile is a team member
+      if (team?.members.some((member: TeamMember) => member.user_id === (payload.new as ProfileRecord).user_id)) {
+        fetchTeam()
+      }
+    })
+
+    channel.subscribe()
 
     return () => {
-      teamSubscription.unsubscribe()
+      channel.unsubscribe()
     }
-  }, [supabase, params.id, team?.members])
+  }, [supabase, params.id, fetchTeam])
 
   const handleAddMember = async (user: { user_id: string }) => {
     try {
