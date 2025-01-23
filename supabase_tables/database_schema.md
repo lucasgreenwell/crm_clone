@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
   sender_id    uuid NOT NULL REFERENCES auth.users (id),
   recipient_id uuid NOT NULL REFERENCES auth.users (id),
   message      text NOT NULL,
+  seen         boolean NOT NULL DEFAULT false,
   created_at   timestamptz NOT NULL DEFAULT NOW(),
   updated_at   timestamptz NOT NULL DEFAULT NOW()
 );
@@ -183,8 +184,21 @@ WITH CHECK (
 );
 
 -- ===========================================
--- Trigger for updated_at
+-- Functions
 -- ===========================================
+
+-- Function to update seen status
+CREATE OR REPLACE FUNCTION public.update_message_seen(message_id uuid, recipient_id uuid)
+RETURNS void AS $$
+BEGIN
+  -- Update seen status if the message hasn't been seen yet
+  UPDATE public.messages
+  SET seen = true
+  WHERE id = message_id AND recipient_id = recipient_id AND NOT seen;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update the `updated_at` column
 CREATE OR REPLACE FUNCTION public.update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -192,6 +206,10 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ===========================================
+-- Triggers
+-- ===========================================
 
 CREATE TRIGGER update_timestamp_messages
 BEFORE UPDATE ON public.messages

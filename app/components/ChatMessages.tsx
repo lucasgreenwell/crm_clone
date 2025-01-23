@@ -1,22 +1,22 @@
+"use client"
+
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useUser } from "@/app/hooks/useUser"
-import { Checkbox } from "@/components/ui/checkbox"
 import { MessageItem } from "@/app/components/MessageItem"
-import { TicketMessage } from "@/app/types/ticket"
+import { Message } from "@/app/types/message"
 
-interface TicketMessagesProps {
-  ticketId: string
+interface ChatMessagesProps {
+  otherUserId: string
   getUserDisplayName: (userId: string) => string
 }
 
-export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesProps) {
-  const [messages, setMessages] = useState<TicketMessage[]>([])
+export function ChatMessages({ otherUserId, getUserDisplayName }: ChatMessagesProps) {
+  const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
-  const [isInternalOnly, setIsInternalOnly] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
   const { user } = useUser()
@@ -24,35 +24,36 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('ticket_messages')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .order('created_at', { ascending: true })
-
-      if (error) {
-        console.error('Error fetching messages:', error)
+      const response = await fetch(`/api/messages?other_user_id=${otherUserId}`)
+      if (!response.ok) {
+        console.error('Error fetching messages')
         return
       }
-
-      setMessages(data || [])
+      const data = await response.json()
+      setMessages(data)
     }
 
     fetchMessages()
 
     // Subscribe to new messages
     const channel = supabase
-      .channel(`ticket_messages:${ticketId}`)
+      .channel(`messages:${otherUserId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'ticket_messages',
-          filter: `ticket_id=eq.${ticketId}`,
+          table: 'messages',
+          filter: `or(and(sender_id.eq.${user?.id},recipient_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},recipient_id.eq.${user?.id}))`,
         },
-        () => {
-          fetchMessages()
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setMessages(prev => [...prev, payload.new as Message])
+          } else if (payload.eventType === 'DELETE') {
+            setMessages(prev => prev.filter(msg => msg.id !== payload.old.id))
+          } else if (payload.eventType === 'UPDATE') {
+            setMessages(prev => prev.map(msg => msg.id === payload.new.id ? payload.new as Message : msg))
+          }
         }
       )
       .subscribe()
@@ -60,7 +61,7 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [ticketId, supabase])
+  }, [otherUserId, supabase, user?.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,22 +70,20 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("/api/ticket-messages", {
+      const response = await fetch("/api/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ticket_id: ticketId,
+          recipient_id: otherUserId,
           message: newMessage.trim(),
-          internal_only: isInternalOnly,
         }),
       })
 
       if (!response.ok) throw new Error("Failed to send message")
 
       setNewMessage("")
-      setIsInternalOnly(false)
       toast({
         title: "Success",
         description: "Message sent successfully",
@@ -103,7 +102,7 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
 
   const handleEdit = async (id: string, newMessage: string) => {
     try {
-      const response = await fetch("/api/ticket-messages", {
+      const response = await fetch("/api/messages", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -137,7 +136,7 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/ticket-messages?id=${id}`, {
+      const response = await fetch(`/api/messages?id=${id}`, {
         method: "DELETE",
       })
 
@@ -171,11 +170,6 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
             getUserDisplayName={getUserDisplayName}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onKeyDown={(e: React.KeyboardEvent) => {
-              if (e.key === 'Escape') {
-                e.stopPropagation()
-              }
-            }}
           />
         ))}
       </div>
@@ -186,23 +180,14 @@ export function TicketMessages({ ticketId, getUserDisplayName }: TicketMessagesP
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your message here..."
           className="min-h-[100px]"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSubmit(e)
+            }
+          }}
         />
-        <div className="flex items-center justify-between">
-          {user?.role !== 'customer' && (
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="internal"
-                checked={isInternalOnly}
-                onCheckedChange={(checked) => setIsInternalOnly(checked as boolean)}
-              />
-              <label
-                htmlFor="internal"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Internal message (hidden from customer)
-              </label>
-            </div>
-          )}
+        <div className="flex justify-end">
           <Button type="submit" disabled={isSubmitting || !newMessage.trim()}>
             Send Message
           </Button>

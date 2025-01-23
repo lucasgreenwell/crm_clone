@@ -48,6 +48,11 @@ export function Header() {
             </Link>
           </li>
           <li>
+            <Link href="/employee/chats" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Chats
+            </Link>
+          </li>
+          <li>
             <Link href="/employee/customers" className="text-sm font-medium text-muted-foreground hover:text-primary">
               Customers
             </Link>
