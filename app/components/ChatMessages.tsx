@@ -12,11 +12,13 @@ import { Message } from "@/app/types/message"
 interface ChatMessagesProps {
   otherUserId: string
   getUserDisplayName: (userId: string) => string
+  showCreateTicket?: boolean
 }
 
 export function ChatMessages({ 
   otherUserId, 
   getUserDisplayName,
+  showCreateTicket = false,
 }: ChatMessagesProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState("")
@@ -178,6 +180,7 @@ export function ChatMessages({
             getUserDisplayName={getUserDisplayName}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            showCreateTicket={showCreateTicket}
           />
         ))}
       </div>

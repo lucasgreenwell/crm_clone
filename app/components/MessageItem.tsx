@@ -3,12 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, Trash } from "lucide-react"
+import { Pencil, Trash, Ticket } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface MessageItemProps {
   message: {
     id: string
     sender_id: string
+    recipient_id: string
     message: string
     internal_only?: boolean
     created_at: string
@@ -18,11 +20,21 @@ interface MessageItemProps {
   onEdit: (id: string, newMessage: string) => void
   onDelete: (id: string) => void
   onKeyDown?: (e: React.KeyboardEvent) => void
+  showCreateTicket?: boolean
 }
 
-export function MessageItem({ message, userId, getUserDisplayName, onEdit, onDelete, onKeyDown }: MessageItemProps) {
+export function MessageItem({ 
+  message, 
+  userId, 
+  getUserDisplayName, 
+  onEdit, 
+  onDelete, 
+  onKeyDown,
+  showCreateTicket = false 
+}: MessageItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(message.message)
+  const { toast } = useToast()
 
   const handleSaveEdit = () => {
     if (editValue.trim()) {
@@ -34,6 +46,42 @@ export function MessageItem({ message, userId, getUserDisplayName, onEdit, onDel
   const handleCancelEdit = () => {
     setIsEditing(false)
     setEditValue(message.message)
+  }
+
+  const handleCreateTicket = async () => {
+    try {
+      const response = await fetch("/api/tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subject: message.message.slice(0, 100) + (message.message.length > 100 ? "..." : ""),
+          description: message.message,
+          priority: "medium",
+          channel: "chat",
+          status: "open",
+          created_by: message.sender_id,
+          assigned_to: userId,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to create ticket")
+
+      toast({
+        title: "Success",
+        description: "Ticket created successfully",
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error('Error creating ticket:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create ticket",
+        variant: "destructive",
+        duration: 3000,
+      })
+    }
   }
 
   return (
@@ -62,26 +110,39 @@ export function MessageItem({ message, userId, getUserDisplayName, onEdit, onDel
           <span className="text-xs text-gray-500">
             {new Date(message.created_at).toLocaleString()}
           </span>
-          {userId === message.sender_id && (
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1">
+            {showCreateTicket && message.recipient_id === userId && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6"
-                onClick={() => setIsEditing(true)}
+                className="h-6 px-2 flex items-center gap-1 text-xs"
+                onClick={handleCreateTicket}
               >
-                <Pencil className="h-3 w-3" />
+                <Ticket className="h-3 w-3" />
+                Create Ticket
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => onDelete(message.id)}
-              >
-                <Trash className="h-3 w-3" />
-              </Button>
-            </div>
-          )}
+            )}
+            {userId === message.sender_id && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => onDelete(message.id)}
+                >
+                  <Trash className="h-3 w-3" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
       {isEditing ? (

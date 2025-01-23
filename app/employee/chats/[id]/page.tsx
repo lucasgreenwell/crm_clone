@@ -69,6 +69,7 @@ export default function ChatPage() {
           <ChatMessages
             otherUserId={params.id as string}
             getUserDisplayName={getUserDisplayName}
+            showCreateTicket={otherUser.role === 'customer'}
           />
         )}
       </div>
