@@ -30,6 +30,7 @@ next-env.d.ts
 # cypress
 cypress.env.json
 /cypress/screenshots
+/cypress/videos
 
 # cursornotepad
 .cursornotepad

@@ -21,6 +21,7 @@ declare global {
       isLoggedIn(): Chainable<void>
       loginAsCustomer(): Chainable<void>
       loginAsEmployee(): Chainable<void>
+      loginAsAdmin(): Chainable<void>
     }
   }
 } 
