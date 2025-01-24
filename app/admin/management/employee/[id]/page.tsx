@@ -8,6 +8,7 @@ import { EmployeeProfile, EmployeeChat } from '@/app/types/employee'
 import { Ticket as TicketType } from '@/app/types/ticket'
 import { Button } from '@/components/ui/button'
 import { EmployeeStats } from '@/app/components/EmployeeStats'
+import { ArrowLeft } from 'lucide-react'
 
 export default function EmployeePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -188,14 +189,18 @@ export default function EmployeePage({ params }: { params: { id: string } }) {
 
   return (
     <div className="container mx-auto p-6">
+      <Button
+        variant="ghost"
+        className="mb-6"
+        onClick={() => router.push('/admin/management')}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Admin Panel
+      </Button>
       <div className="flex items-center justify-between mb-6">
+      
         <h1 className="text-3xl font-bold">Employee Management</h1>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/employee/management')}
-        >
-          Back to Management
-        </Button>
+        
       </div>
 
       <EmployeeStats

@@ -164,10 +164,10 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
       <Button
         variant="ghost"
         className="mb-6"
-        onClick={() => router.push('/admin/teams')}
+        onClick={() => router.push('/admin/management')}
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Teams
+        Back to Admin Panel
       </Button>
 
       <div className="flex items-center justify-between mb-8">
