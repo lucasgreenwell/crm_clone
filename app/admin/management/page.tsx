@@ -65,7 +65,7 @@ function EmployeeCard({ employee, onCallChanged }: {
   return (
     <Card 
       className="cursor-pointer hover:border-primary/50 transition-transform transform hover:scale-105 shadow-lg rounded-lg bg-white"
-      onClick={() => router.push(`/admin/management/${employee.user_id}`)}
+      onClick={() => router.push(`/admin/management/employee/${employee.user_id}`)}
     >
       <CardHeader>
         <div className="flex items-center justify-between">

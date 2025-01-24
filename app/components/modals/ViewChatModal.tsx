@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Message } from "@/app/types/message"
 import { MessageItem } from "@/app/components/MessageItem"
+import { useUser } from "@/app/hooks/useUser"
 
 interface ViewChatModalProps {
   open: boolean
@@ -23,10 +24,16 @@ export function ViewChatModal({
 }: ViewChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const supabase = createClientComponentClient()
+  const { user } = useUser()
 
   useEffect(() => {
     const fetchMessages = async () => {
-      const response = await fetch(`/api/messages/customer?other_user_id=${otherUserId}&customer_id=${customerId}`)
+      // Determine which API route to use based on the user's role
+      const apiRoute = user?.role === 'customer' 
+        ? '/api/messages/customer' 
+        : '/api/messages/employee'
+
+      const response = await fetch(`${apiRoute}?other_user_id=${otherUserId}&customer_id=${customerId}`)
       if (!response.ok) {
         console.error('Error fetching messages')
         return
@@ -38,7 +45,7 @@ export function ViewChatModal({
     if (open) {
       fetchMessages()
     }
-  }, [otherUserId, customerId, open])
+  }, [otherUserId, customerId, open, user?.role])
 
   // Empty functions for read-only view
   const handleEdit = () => {}

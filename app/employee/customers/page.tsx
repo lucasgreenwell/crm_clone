@@ -52,7 +52,6 @@ export default function CustomersPage() {
         const { data: totalMessages } = await supabase.rpc('get_total_chat_messages_count', { user_id: customer.user_id })
         const { data: unrespondedMessages } = await supabase.rpc('get_unresponded_chat_messages_count', { user_id: customer.user_id })
         const { data: avgRating } = await supabase.rpc('get_average_rating', { user_id: customer.user_id })
-        console.log(customer.display_name, totalTickets, openTickets, totalMessages, unrespondedMessages)
         return {
           ...customer,
           totalTickets: totalTickets || 0,

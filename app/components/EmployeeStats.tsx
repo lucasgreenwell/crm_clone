@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MessageSquare, Ticket, AlertCircle, Clock } from 'lucide-react'
 import { TicketsList } from '@/app/components/TicketsList'
@@ -8,6 +9,7 @@ import { EmployeeProfile, EmployeeChat } from '@/app/types/employee'
 import { ViewChatModal } from '@/app/components/modals/ViewChatModal'
 import { Ticket as TicketType } from '@/app/types/ticket'
 import { TicketCard } from '@/app/components/TicketCard'
+import { useUser } from '@/app/hooks/useUser'
 
 interface EmployeeStatsProps {
   employee: EmployeeProfile
@@ -22,6 +24,8 @@ export function EmployeeStats({
   fetchTickets,
   canModifyTickets = false
 }: EmployeeStatsProps) {
+  const router = useRouter()
+  const { user } = useUser()
   const [selectedChat, setSelectedChat] = useState<EmployeeChat | null>(null)
   const [showChatModal, setShowChatModal] = useState(false)
 
@@ -44,6 +48,17 @@ export function EmployeeStats({
       return `${parseInt(minutes)}m ${seconds}s`
     }
     return `${parseInt(hours)}h ${minutes}m`
+  }
+
+  const handleChatClick = (chat: EmployeeChat) => {
+    if (employee.user_id === user?.id) {
+      // If the current user is the customer, navigate to the chat page
+      router.push(`/employee/chats/${chat.customer.id}`)
+    } else {
+      // Otherwise, show the chat modal for viewing the chat
+      setSelectedChat(chat)
+      setShowChatModal(true)
+    }
   }
 
   return (
@@ -171,10 +186,7 @@ export function EmployeeStats({
               <Card 
                 key={chat.customer.id}
                 className="cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => {
-                  setSelectedChat(chat)
-                  setShowChatModal(true)
-                }}
+                onClick={() => handleChatClick(chat)}
               >
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
@@ -204,7 +216,7 @@ export function EmployeeStats({
         <ViewChatModal
           open={showChatModal}
           onOpenChange={setShowChatModal}
-          otherUserId={selectedChat.customer.id}
+          otherUserId={employee.user_id}
           customerId={selectedChat.customer.id}
           getUserDisplayName={(id) => 
             id === selectedChat.customer.id 
