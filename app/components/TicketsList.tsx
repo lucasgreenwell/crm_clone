@@ -31,6 +31,8 @@ interface TicketsListProps {
   title: string
   defaultAssignee?: string
   showBulkActions?: boolean
+  showSearch?: boolean
+  showCreateTicket?: boolean
   subscriptionFilter?: {
     column: string
     value: string
@@ -42,6 +44,8 @@ export function TicketsList({
   title, 
   defaultAssignee, 
   showBulkActions = true,
+  showSearch = true,
+  showCreateTicket = true,
   subscriptionFilter
 }: TicketsListProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -310,19 +314,21 @@ export function TicketsList({
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">{title}</h1>
-        <CreateTicketModal
-          trigger={
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Ticket
-            </Button>
-          }
-          onTicketCreated={handleTicketCreated}
-          defaultAssignee={defaultAssignee}
-        />
-      </div>
+      {title && showCreateTicket && (
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">{title}</h1>
+          <CreateTicketModal
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Ticket
+              </Button>
+            }
+            onTicketCreated={handleTicketCreated}
+            defaultAssignee={defaultAssignee}
+          />
+        </div>
+      )}
 
       {selectedTickets.size > 0 && showBulkActions ? (
         <div className="mb-6 flex items-center justify-between">
@@ -354,88 +360,90 @@ export function TicketsList({
           </div>
         </div>
       ) : (
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search tickets..."
-                  className="pl-8"
-                  value={filters.search || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                />
-                {filters.search && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-2 h-4 w-4 p-0"
-                    onClick={() => setFilters(prev => ({ ...prev, search: undefined }))}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+        showSearch && (
+          <div className="mb-6 space-y-4">
+            <div className="flex flex-wrap gap-4">
+              <div className="flex-1 min-w-[200px]">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tickets..."
+                    className="pl-8"
+                    value={filters.search || ''}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  />
+                  {filters.search && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-2 h-4 w-4 p-0"
+                      onClick={() => setFilters(prev => ({ ...prev, search: undefined }))}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-            <Select
-              value={filters.status}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as any || undefined }))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.created_by}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, created_by: value === 'all' ? undefined : value }))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by creator" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All creators</SelectItem>
-                {creatorUsers.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.display_name || 'Unknown User'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.assigned_to}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, assigned_to: value === 'all' ? undefined : value }))}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by assignee" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All assignees</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {assigneeUsers.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.display_name || 'Unknown User'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {Object.keys(filters).length > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => setFilters({})}
-                size="sm"
+              <Select
+                value={filters.status}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as any || undefined }))}
               >
-                Clear filters
-              </Button>
-            )}
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.created_by}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, created_by: value === 'all' ? undefined : value }))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by creator" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All creators</SelectItem>
+                  {creatorUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.display_name || 'Unknown User'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filters.assigned_to}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, assigned_to: value === 'all' ? undefined : value }))}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All assignees</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {assigneeUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.display_name || 'Unknown User'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {Object.keys(filters).length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setFilters({})}
+                  size="sm"
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {loading ? (
