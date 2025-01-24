@@ -227,12 +227,40 @@ export function ViewTicketModal({
                   {canEditAssignee ? (
                     <Select
                       value={ticket.assigned_to || 'unassigned'}
-                      onValueChange={(value) => {
-                        handleSave('assigned_to')
-                        setEditValues(prev => ({ 
-                          ...prev, 
-                          assigned_to: value === 'unassigned' ? null : value 
-                        }))
+                      onValueChange={async (value) => {
+                        const newAssignedTo = value === 'unassigned' ? null : value
+                        const updatedTicket = {
+                          ...ticket,
+                          assigned_to: newAssignedTo
+                        }
+                        
+                        setIsSubmitting(true)
+                        try {
+                          const response = await fetch("/api/tickets", {
+                            method: "PATCH",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(updatedTicket),
+                          })
+
+                          if (!response.ok) throw new Error("Failed to update ticket")
+
+                          const result = await response.json()
+                          onTicketUpdated(result)
+                          toast({
+                            title: "Success",
+                            description: "Ticket updated successfully",
+                          })
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update ticket",
+                            variant: "destructive",
+                          })
+                        } finally {
+                          setIsSubmitting(false)
+                        }
                       }}
                     >
                       <SelectTrigger className="h-7 w-[200px]">
