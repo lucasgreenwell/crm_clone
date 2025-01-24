@@ -10,6 +10,9 @@ export interface Ticket {
   channel: 'web' | 'email' | 'chat' | 'social' | 'sms' | 'phone'
   created_at: string
   updated_at: string
+  ticket_feedback?: {
+    rating: number | null
+  }
 }
 
 export interface TicketMessage {

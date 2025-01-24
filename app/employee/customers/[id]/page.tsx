@@ -11,6 +11,7 @@ import { TicketsList } from '@/app/components/TicketsList'
 import { CustomerProfile, CustomerChat } from '@/app/types/customer'
 import { ViewChatModal } from '@/app/components/modals/ViewChatModal'
 import { Ticket as TicketType } from '@/app/types/ticket'
+import { TicketCard } from '@/app/components/TicketCard'
 
 export default function CustomerDetailPage() {
   const router = useRouter()
@@ -49,12 +50,17 @@ export default function CustomerDetailPage() {
       const { data: totalMessages } = await supabase.rpc('get_total_chat_messages_count', { user_id: params.id })
       const { data: unrespondedMessages } = await supabase.rpc('get_unresponded_chat_messages_count', { user_id: params.id })
 
+      // Fetch average rating
+      const { data: avgRating } = await supabase
+        .rpc('get_average_rating', { user_id: params.id })
+
       setCustomer({
         ...profileData,
         totalTickets: totalTickets || 0,
         openTickets: openTickets || 0,
         totalMessages: totalMessages || 0,
         unrespondedMessages: unrespondedMessages || 0,
+        averageRating: avgRating || null,
       })
 
       // Fetch customer's chats
@@ -138,7 +144,12 @@ export default function CustomerDetailPage() {
   const fetchCustomerTickets = async () => {
     const { data, error } = await supabase
       .from('tickets')
-      .select('*')
+      .select(`
+        *,
+        ticket_feedback (
+          rating
+        )
+      `)
       .eq('created_by', params.id)
       .order('status', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -153,6 +164,12 @@ export default function CustomerDetailPage() {
     return data.sort((a: TicketType, b: TicketType) => 
       statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder]
     )
+  }
+
+  const getRatingColor = (rating: number) => {
+    if (rating > 3.5) return 'text-green-500'
+    if (rating >= 2) return 'text-yellow-500'
+    return 'text-red-500'
   }
 
   const handleChatClick = (chat: CustomerChat) => {
@@ -210,7 +227,7 @@ export default function CustomerDetailPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <div className="flex items-center text-sm text-muted-foreground">
                 <Ticket className="w-4 h-4 mr-1" /> Total Tickets
@@ -225,7 +242,7 @@ export default function CustomerDetailPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center text-sm text-muted-foreground">
-                <MessageSquare className="w-4 h-4 mr-1" /> Total Messages
+                <MessageSquare className="w-4 w-4 mr-1" /> Total Messages
               </div>
               <p className="text-2xl font-bold">{customer.totalMessages}</p>
             </div>
@@ -235,6 +252,16 @@ export default function CustomerDetailPage() {
               </div>
               <p className="text-2xl font-bold text-red-500">{customer.unrespondedMessages}</p>
             </div>
+            {customer.averageRating !== null && (
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  Average Rating
+                </div>
+                <p className={`text-2xl font-bold ${getRatingColor(customer.averageRating)}`}>
+                  {customer.averageRating.toFixed(1)}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -259,6 +286,30 @@ export default function CustomerDetailPage() {
               column: 'created_by',
               value: customer.user_id
             }}
+            renderTicket={(ticket: TicketType) => (
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <TicketCard
+                    ticket={ticket}
+                    canModifyTicket={false}
+                    showCheckbox={false}
+                    onTicketUpdated={() => {}}
+                    getUserDisplayName={(id) => {
+                      if (id === customer.user_id) return customer.display_name
+                      return 'Unknown User'
+                    }}
+                  />
+                </div>
+                {(ticket.status === 'closed' || ticket.status === 'resolved') && 
+                 ticket.ticket_feedback?.rating && (
+                  <div className={`flex items-center ${getRatingColor(ticket.ticket_feedback.rating)}`}>
+                    <span className="text-lg font-semibold">
+                      {ticket.ticket_feedback.rating}/5
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           />
         </div>
 

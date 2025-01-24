@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import React from "react"
 import { Ticket } from "@/app/types/ticket"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, X } from "lucide-react"
@@ -37,6 +38,7 @@ interface TicketsListProps {
     column: string
     value: string
   }
+  renderTicket?: (ticket: Ticket) => React.ReactNode
 }
 
 export function TicketsList({ 
@@ -46,7 +48,8 @@ export function TicketsList({
   showBulkActions = true,
   showSearch = true,
   showCreateTicket = true,
-  subscriptionFilter
+  subscriptionFilter,
+  renderTicket
 }: TicketsListProps) {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
@@ -461,21 +464,27 @@ export function TicketsList({
       ) : (
         <div className="grid gap-4">
           {filteredTickets.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              canModifyTicket={canModifyTicket(ticket)}
-              showCheckbox={showBulkActions && user?.role !== 'customer'}
-              isSelected={selectedTickets.has(ticket.id)}
-              onSelect={toggleTicketSelection}
-              onStatusChange={user?.role !== 'customer' ? handleUpdateTicketStatus : undefined}
-              onTicketUpdated={handleTicketUpdated}
-              onDelete={canModifyTicket(ticket) ? () => {
-                setTicketToDelete(ticket)
-                setShowDeleteDialog(true)
-              } : undefined}
-              getUserDisplayName={getUserDisplayName}
-            />
+            renderTicket ? (
+              <React.Fragment key={ticket.id}>
+                {renderTicket(ticket)}
+              </React.Fragment>
+            ) : (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                canModifyTicket={canModifyTicket(ticket)}
+                showCheckbox={showBulkActions && user?.role !== 'customer'}
+                isSelected={selectedTickets.has(ticket.id)}
+                onSelect={toggleTicketSelection}
+                onStatusChange={user?.role !== 'customer' ? handleUpdateTicketStatus : undefined}
+                onTicketUpdated={handleTicketUpdated}
+                onDelete={canModifyTicket(ticket) ? () => {
+                  setTicketToDelete(ticket)
+                  setShowDeleteDialog(true)
+                } : undefined}
+                getUserDisplayName={getUserDisplayName}
+              />
+            )
           ))}
         </div>
       )}

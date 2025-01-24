@@ -10,6 +10,7 @@ export interface CustomerProfile {
   openTickets: number
   totalMessages: number
   unrespondedMessages: number
+  averageRating: number | null
 }
 
 export interface CustomerChat {

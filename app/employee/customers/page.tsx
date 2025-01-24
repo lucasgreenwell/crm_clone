@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { useUser } from '@/app/hooks/useUser'
-import { Ticket, MessageCircle, AlertCircle } from 'lucide-react'
+import { Ticket, MessageCircle, AlertCircle, Star } from 'lucide-react'
 
 interface CustomerProfile {
   user_id: string
@@ -16,6 +16,7 @@ interface CustomerProfile {
   openTickets: number
   totalMessages: number
   unrespondedMessages: number
+  averageRating: number | null
 }
 
 export default function CustomersPage() {
@@ -50,6 +51,7 @@ export default function CustomersPage() {
         const { data: openTickets } = await supabase.rpc('get_open_tickets_count', { user_id: customer.user_id })
         const { data: totalMessages } = await supabase.rpc('get_total_chat_messages_count', { user_id: customer.user_id })
         const { data: unrespondedMessages } = await supabase.rpc('get_unresponded_chat_messages_count', { user_id: customer.user_id })
+        const { data: avgRating } = await supabase.rpc('get_average_rating', { user_id: customer.user_id })
         console.log(customer.display_name, totalTickets, openTickets, totalMessages, unrespondedMessages)
         return {
           ...customer,
@@ -57,6 +59,7 @@ export default function CustomersPage() {
           openTickets: openTickets || 0,
           totalMessages: totalMessages || 0,
           unrespondedMessages: unrespondedMessages || 0,
+          averageRating: avgRating || null,
         }
       }))
 
@@ -97,6 +100,12 @@ export default function CustomersPage() {
     )
   }
 
+  const getRatingColor = (rating: number) => {
+    if (rating > 3.5) return 'text-green-500'
+    if (rating >= 2) return 'text-yellow-500'
+    return 'text-red-500'
+  }
+
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Customers</h1>
@@ -129,6 +138,11 @@ export default function CustomersPage() {
                 <div className="flex items-center text-sm text-red-500">
                   <AlertCircle className="w-4 h-4 mr-1" /> Unresponded Messages: {customer.unrespondedMessages}
                 </div>
+                {customer.averageRating !== null && (
+                  <div className={`flex items-center text-sm ${getRatingColor(customer.averageRating)}`}>
+                    <Star className="w-4 h-4 mr-1" /> Average Rating: {customer.averageRating.toFixed(1)}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
