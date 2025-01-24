@@ -12,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Bell, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
+import { ChatNotifications } from "@/app/components/ChatNotifications"
 
 export function Header() {
   const { user, signOut } = useUser()
@@ -90,7 +91,8 @@ export function Header() {
             {renderNavigation()}
           </div>
           {user && (
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <ChatNotifications />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
