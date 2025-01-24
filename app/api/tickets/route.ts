@@ -6,12 +6,15 @@ import { sendTemplateEmail } from "@/app/utils/email"
 interface Profile {
   display_name: string
   email: string
+  id?: string
 }
 
 interface CurrentTicket {
   status: string
   subject: string
   created_by: string
+  assigned_to: string | null
+  assignee: Profile | null
   profiles: Profile
 }
 
@@ -60,9 +63,14 @@ export async function PATCH(request: Request) {
         status, 
         subject,
         created_by,
-        profiles:profiles!created_by (
+        assigned_to,
+        profiles!created_by (
           display_name,
           email
+        ),
+        assignee:profiles!assigned_to (
+          display_name,
+          id:user_id
         )
       `)
       .eq('id', ticket.id)
@@ -78,7 +86,16 @@ export async function PATCH(request: Request) {
       status: ticketData.status,
       subject: ticketData.subject,
       created_by: ticketData.created_by,
-      profiles: ticketData.profiles
+      assigned_to: ticketData.assigned_to,
+      assignee: ticketData.assignee ? {
+        display_name: ticketData.assignee.display_name,
+        email: '', // Email not needed for assignee
+        id: ticketData.assignee.id
+      } : null,
+      profiles: {
+        display_name: ticketData.profiles.display_name,
+        email: ticketData.profiles.email
+      }
     }
 
     const { data: updatedTicket, error: updateError } = await supabase
@@ -97,18 +114,71 @@ export async function PATCH(request: Request) {
       currentTicket.status !== ticket.status &&
       currentTicket.profiles?.email // Make sure we have the user's email
     ) {
-      const emailSent = await sendTemplateEmail({
-        to: currentTicket.profiles.email,
-        templateId: process.env.SENDGRID_STATUS_UPDATE_TEMPLATE_ID!,
-        dynamicTemplateData: {
-          user_name: currentTicket.profiles.display_name,
-          ticket_subject: currentTicket.subject,
-          ticket_status: ticket.status,
-        },
-      })
+      // Determine which template to use based on status transition
+      let templateId = process.env.SENDGRID_STATUS_UPDATE_TEMPLATE_ID!; // default template
 
-      if (!emailSent) {
-        console.error('Failed to send status update email for ticket:', ticket.id)
+      if (currentTicket.status === 'open' && ticket.status === 'pending') {
+        templateId = process.env.SENDGRID_PENDING_TEMPLATE_ID!;
+        const emailSent = await sendTemplateEmail({
+          to: currentTicket.profiles.email,
+          templateId,
+          dynamicTemplateData: {
+            user_name: currentTicket.profiles.display_name,
+            ticket_subject: currentTicket.subject,
+            ticket_status: ticket.status,
+            old_status: currentTicket.status,
+            assignee_name: currentTicket.assignee?.display_name || 'Unknown',
+            assigned_to: currentTicket.assignee?.id || '',
+          },
+        });
+        if (!emailSent) {
+          console.error('Failed to send status update email for ticket:', ticket.id)
+        }
+      } else if (currentTicket.status === 'pending' && ticket.status === 'resolved') {
+        templateId = process.env.SENDGRID_RESOLVED_TEMPLATE_ID!;
+        const emailSent = await sendTemplateEmail({
+          to: currentTicket.profiles.email,
+          templateId,
+          dynamicTemplateData: {
+            user_name: currentTicket.profiles.display_name,
+            ticket_subject: currentTicket.subject,
+            ticket_status: ticket.status,
+            old_status: currentTicket.status,
+          },
+        });
+        if (!emailSent) {
+          console.error('Failed to send status update email for ticket:', ticket.id)
+        }
+      } else if (ticket.status === 'closed') {
+        templateId = process.env.SENDGRID_CLOSED_TEMPLATE_ID!;
+        const emailSent = await sendTemplateEmail({
+          to: currentTicket.profiles.email,
+          templateId,
+          dynamicTemplateData: {
+            user_name: currentTicket.profiles.display_name,
+            ticket_subject: currentTicket.subject,
+            ticket_status: ticket.status,
+            old_status: currentTicket.status,
+          },
+        });
+        if (!emailSent) {
+          console.error('Failed to send status update email for ticket:', ticket.id)
+        }
+      } else {
+        // Default status update template
+        const emailSent = await sendTemplateEmail({
+          to: currentTicket.profiles.email,
+          templateId,
+          dynamicTemplateData: {
+            user_name: currentTicket.profiles.display_name,
+            ticket_subject: currentTicket.subject,
+            ticket_status: ticket.status,
+            old_status: currentTicket.status,
+          },
+        });
+        if (!emailSent) {
+          console.error('Failed to send status update email for ticket:', ticket.id)
+        }
       }
     }
 

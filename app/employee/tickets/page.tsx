@@ -14,7 +14,6 @@ export default function EmployeeTickets() {
     const { data, error } = await supabase
       .from('tickets')
       .select('*')
-      .eq('assigned_to', user.id)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -27,5 +26,5 @@ export default function EmployeeTickets() {
 
   if (!user) return null
 
-  return <TicketsList fetchTickets={fetchTickets} title="My Assigned Tickets" defaultAssignee={user.id} />
+  return <TicketsList fetchTickets={fetchTickets} title="All Tickets" defaultAssignee={user.id} />
 } 
