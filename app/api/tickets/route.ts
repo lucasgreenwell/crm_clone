@@ -7,6 +7,24 @@ interface Profile {
   display_name: string
   email: string
   id?: string
+  role?: string
+  user_id?: string
+  is_oncall?: boolean
+}
+
+interface SupabaseTicketResponse {
+  status: string
+  subject: string
+  created_by: string
+  assigned_to: string | null
+  profiles: Array<{
+    display_name: string
+    email: string
+  }>
+  assignee: Array<{
+    display_name: string
+    id: string
+  }> | null
 }
 
 interface CurrentTicket {
@@ -28,11 +46,35 @@ export async function POST(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
+    // Get the user's profile to check their role
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single()
+
+    if (profileError) throw profileError
+
+    let assignedTo = body.assigned_to
+
+    // If the user is a customer, automatically assign to the on-call employee
+    if (userProfile.role === 'customer') {
+      const { data: oncallEmployee, error: oncallError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('is_oncall', true)
+        .single()
+
+      if (oncallError) throw oncallError
+      assignedTo = oncallEmployee.user_id
+    }
+
     const { data, error } = await supabase
       .from('tickets')
       .insert({
         ...body,
         created_by: user.id,
+        assigned_to: assignedTo,
       })
       .select()
       .single()
@@ -81,20 +123,22 @@ export async function PATCH(request: Request) {
       throw ticketError
     }
 
+    const typedTicketData = ticketData as SupabaseTicketResponse
+
     // Transform the data to match our interface
     const currentTicket: CurrentTicket = {
-      status: ticketData.status,
-      subject: ticketData.subject,
-      created_by: ticketData.created_by,
-      assigned_to: ticketData.assigned_to,
-      assignee: ticketData.assignee ? {
-        display_name: ticketData.assignee.display_name,
+      status: typedTicketData.status,
+      subject: typedTicketData.subject,
+      created_by: typedTicketData.created_by,
+      assigned_to: typedTicketData.assigned_to,
+      assignee: typedTicketData.assignee?.[0] ? {
+        display_name: typedTicketData.assignee[0].display_name,
         email: '', // Email not needed for assignee
-        id: ticketData.assignee.id
+        id: typedTicketData.assignee[0].id
       } : null,
       profiles: {
-        display_name: ticketData.profiles.display_name,
-        email: ticketData.profiles.email
+        display_name: typedTicketData.profiles[0].display_name,
+        email: typedTicketData.profiles[0].email
       }
     }
 

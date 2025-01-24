@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/app/hooks/useUser'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { TeamWithMembers, TeamMember } from '@/app/types/team'
 import { Button } from '@/components/ui/button'
-import { UserPlus, ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft, Pencil } from 'lucide-react'
 import { UserSearchModal } from '@/app/components/modals/UserSearchModal'
-import { TeamMembersList } from '@/app/components/TeamMembersList'
 import { EditTeamModal } from '@/app/components/modals/EditTeamModal'
+import { TeamStats } from '@/app/components/TeamStats'
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 interface TeamDetailPageProps {
@@ -34,6 +34,7 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const supabase = createClientComponentClient()
+  const teamMembersRef = useRef<TeamMember[]>([])
 
   // Admin access check
   useEffect(() => {
@@ -61,7 +62,9 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
 
       if (error) throw error
       
-      setTeam(data as TeamWithMembers)
+      const teamData = data as TeamWithMembers
+      setTeam(teamData)
+      teamMembersRef.current = teamData.members
     } catch (err) {
       setError(err as Error)
     } finally {
@@ -97,8 +100,9 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
       schema: 'public',
       table: 'profiles'
     }, (payload: ProfileChangesPayload) => {
+      const newProfile = payload.new as ProfileRecord
       // Only fetch if the changed profile is a team member
-      if (team?.members.some((member: TeamMember) => member.user_id === (payload.new as ProfileRecord).user_id)) {
+      if (teamMembersRef.current.some((member: TeamMember) => member.user_id === newProfile.user_id)) {
         fetchTeam()
       }
     })
@@ -130,6 +134,23 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
       setIsAddMemberModalOpen(false)
     } catch (error) {
       console.error('Error adding team member:', error)
+    }
+  }
+
+  const handleRemoveMember = async (userId: string) => {
+    try {
+      const response = await fetch(
+        `/api/teams/members?team_id=${params.id}&user_id=${userId}`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to remove team member')
+      }
+    } catch (error) {
+      console.error('Error removing team member:', error)
     }
   }
 
@@ -188,15 +209,11 @@ export default function TeamDetailPage({ params }: TeamDetailPageProps) {
           )}
         </div>
         <Button onClick={() => setIsAddMemberModalOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
           Add Member
         </Button>
       </div>
 
-      <div className="bg-card rounded-lg border p-6">
-        <h2 className="text-xl font-semibold mb-4">Team Members</h2>
-        <TeamMembersList teamId={team.id} members={team.members} />
-      </div>
+      <TeamStats team={team} onRemoveMember={handleRemoveMember} />
 
       <UserSearchModal
         open={isAddMemberModalOpen}
