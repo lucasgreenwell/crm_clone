@@ -87,7 +87,7 @@ export function TeamsList({ teams }: TeamsListProps) {
       {teams.map((team) => (
         <Card 
           key={team.id} 
-          className="cursor-pointer hover:border-primary/50 transition-colors"
+          className="cursor-pointer hover:border-primary/50 transition-transform transform hover:scale-105 shadow-lg rounded-lg bg-white"
           onClick={(e) => handleCardClick(e, team)}
         >
           <CardHeader>
