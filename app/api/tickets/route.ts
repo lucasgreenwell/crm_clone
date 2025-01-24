@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server"
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
+import { sendTemplateEmail } from "@/app/utils/email"
+
+interface Profile {
+  display_name: string
+  email: string
+}
+
+interface CurrentTicket {
+  status: string
+  subject: string
+  created_by: string
+  profiles: Profile
+}
 
 export async function POST(request: Request) {
   try {
@@ -40,12 +53,33 @@ export async function PATCH(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
-    // Check if the status is being updated to resolved or closed
-    const { data: currentTicket } = await supabase
+    // Check if the status is being updated
+    const { data: ticketData, error: ticketError } = await supabase
       .from('tickets')
-      .select('status, created_by')
+      .select(`
+        status, 
+        subject,
+        created_by,
+        profiles:profiles!created_by (
+          display_name,
+          email
+        )
+      `)
       .eq('id', ticket.id)
       .single()
+
+    if (ticketError) {
+      console.error('Error fetching current ticket:', ticketError)
+      throw ticketError
+    }
+
+    // Transform the data to match our interface
+    const currentTicket: CurrentTicket = {
+      status: ticketData.status,
+      subject: ticketData.subject,
+      created_by: ticketData.created_by,
+      profiles: ticketData.profiles
+    }
 
     const { data: updatedTicket, error: updateError } = await supabase
       .from('tickets')
@@ -55,6 +89,28 @@ export async function PATCH(request: Request) {
       .single()
 
     if (updateError) throw updateError
+
+    // If status has changed, send email notification
+    console.log('Current ticket:', currentTicket, 'Email:', currentTicket?.profiles?.email, 'Old status:', currentTicket?.status, 'New status:', ticket.status)
+    if (
+      currentTicket &&
+      currentTicket.status !== ticket.status &&
+      currentTicket.profiles?.email // Make sure we have the user's email
+    ) {
+      const emailSent = await sendTemplateEmail({
+        to: currentTicket.profiles.email,
+        templateId: process.env.SENDGRID_STATUS_UPDATE_TEMPLATE_ID!,
+        dynamicTemplateData: {
+          user_name: currentTicket.profiles.display_name,
+          ticket_subject: currentTicket.subject,
+          ticket_status: ticket.status,
+        },
+      })
+
+      if (!emailSent) {
+        console.error('Failed to send status update email for ticket:', ticket.id)
+      }
+    }
 
     // If status is being changed to resolved or closed, create feedback entry
     if (
