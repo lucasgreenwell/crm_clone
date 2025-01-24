@@ -52,16 +52,17 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const other_user_id = searchParams.get('other_user_id')
+    const customer_id = searchParams.get('customer_id')
 
-    if (!other_user_id) {
-      return new NextResponse("Missing other_user_id", { status: 400 })
+    if (!other_user_id || !customer_id) {
+      return new NextResponse("Missing required parameters", { status: 400 })
     }
 
-    // Get messages between the two users
+    // Get messages between the customer and employee
     const { data: messages, error } = await supabase
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${other_user_id}),and(sender_id.eq.${other_user_id},recipient_id.eq.${user.id})`)
+      .or(`and(sender_id.eq.${customer_id},recipient_id.eq.${other_user_id}),and(sender_id.eq.${other_user_id},recipient_id.eq.${customer_id})`)
       .order('created_at', { ascending: true })
 
     if (error) throw error

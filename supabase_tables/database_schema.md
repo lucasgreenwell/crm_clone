@@ -228,6 +228,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name text,
   role         text NOT NULL DEFAULT 'customer' 
     CHECK (role IN ('customer','agent','admin')),
+  is_oncall    boolean NOT NULL DEFAULT false,
   created_at   timestamptz NOT NULL DEFAULT NOW(),
   updated_at   timestamptz NOT NULL DEFAULT NOW()
 );
@@ -275,6 +276,25 @@ USING ( EXISTS (
     AND role = 'agent'
 ) );
 
+-- Function to ensure only one user can be oncall at a time
+CREATE OR REPLACE FUNCTION update_oncall_status()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.is_oncall = true THEN
+    -- Set all other users' is_oncall to false
+    UPDATE public.profiles 
+    SET is_oncall = false 
+    WHERE user_id != NEW.user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to maintain single oncall user
+CREATE TRIGGER ensure_single_oncall
+BEFORE UPDATE OR INSERT ON public.profiles
+FOR EACH ROW
+EXECUTE FUNCTION update_oncall_status();
 
 -- Function to update the `updated_at` column
 CREATE OR REPLACE FUNCTION public.update_timestamp()
@@ -284,7 +304,6 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 
 -- Optional: Trigger to keep updated_at current
 CREATE TRIGGER update_timestamp_profiles

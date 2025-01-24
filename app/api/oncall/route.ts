@@ -1,25 +1,19 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     const { userId } = await request.json()
-    const supabase = createRouteHandlerClient({ cookies })
 
-    // Verify user is admin
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user?.id)
-      .single()
-
-    if (!profile || profile.role !== 'admin') {
-      return new NextResponse('Unauthorized', { status: 403 })
+    if (!userId) {
+      return new NextResponse("Missing user ID", { status: 400 })
     }
 
-    // Update oncall status
     const { error } = await supabase
       .from('profiles')
       .update({ is_oncall: true })
@@ -27,9 +21,9 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    return NextResponse.json({ success: true })
+    return new NextResponse(null, { status: 200 })
   } catch (error) {
-    console.error('Error:', error)
-    return new NextResponse('Internal Server Error', { status: 500 })
+    console.error("[ONCALL_POST]", error)
+    return new NextResponse("Internal error", { status: 500 })
   }
 } 
