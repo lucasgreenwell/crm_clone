@@ -63,6 +63,11 @@ export function Header() {
               Customers
             </Link>
           </li>
+          <li>
+            <Link href="/employee/templates" className="text-sm font-medium text-muted-foreground hover:text-primary">
+              Templates
+            </Link>
+          </li>
           {user.role === 'admin' && (
             <li>
               <Link href="/admin/management" className="text-sm font-medium text-muted-foreground hover:text-primary">
