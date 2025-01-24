@@ -6,9 +6,10 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useUser } from '@/app/hooks/useUser'
 import { EmployeeProfile, EmployeeChat } from '@/app/types/employee'
 import { Ticket as TicketType } from '@/app/types/ticket'
+import { Button } from '@/components/ui/button'
 import { EmployeeStats } from '@/app/components/EmployeeStats'
 
-export default function DashboardPage() {
+export default function EmployeePage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const { user } = useUser()
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null)
@@ -17,7 +18,7 @@ export default function DashboardPage() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    if (user && user.role === 'customer') {
+    if (user && user.role !== 'admin') {
       router.push('/')
     }
   }, [user, router])
@@ -30,7 +31,7 @@ export default function DashboardPage() {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', params.id)
         .single()
 
       if (profileError) {
@@ -48,13 +49,13 @@ export default function DashboardPage() {
         { data: avgResponseTime },
         { data: avgTicketCompletionTime }
       ] = await Promise.all([
-        supabase.rpc('get_employee_average_rating', { employee_id: user.id }),
-        supabase.rpc('get_employee_total_tickets', { employee_id: user.id }),
-        supabase.rpc('get_employee_open_tickets', { employee_id: user.id }),
-        supabase.rpc('get_employee_total_messages', { employee_id: user.id }),
-        supabase.rpc('get_employee_unresponded_messages', { employee_id: user.id }),
-        supabase.rpc('get_employee_avg_response_time', { employee_id: user.id }),
-        supabase.rpc('get_employee_avg_ticket_completion_time', { employee_id: user.id })
+        supabase.rpc('get_employee_average_rating', { employee_id: params.id }),
+        supabase.rpc('get_employee_total_tickets', { employee_id: params.id }),
+        supabase.rpc('get_employee_open_tickets', { employee_id: params.id }),
+        supabase.rpc('get_employee_total_messages', { employee_id: params.id }),
+        supabase.rpc('get_employee_unresponded_messages', { employee_id: params.id }),
+        supabase.rpc('get_employee_avg_response_time', { employee_id: params.id }),
+        supabase.rpc('get_employee_avg_ticket_completion_time', { employee_id: params.id })
       ])
 
       setEmployee({
@@ -72,14 +73,14 @@ export default function DashboardPage() {
       const { data: messages } = await supabase
         .from('messages')
         .select('*')
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .or(`sender_id.eq.${params.id},recipient_id.eq.${params.id}`)
         .order('created_at', { ascending: false })
 
       if (messages) {
         // Get unique customer IDs from messages
         const uniqueCustomerIds = new Set<string>()
         messages.forEach(message => {
-          const customerId = message.sender_id === user.id ? message.recipient_id : message.sender_id
+          const customerId = message.sender_id === params.id ? message.recipient_id : message.sender_id
           uniqueCustomerIds.add(customerId)
         })
 
@@ -95,7 +96,7 @@ export default function DashboardPage() {
           const chatMap = new Map<string, EmployeeChat>()
 
           messages.forEach(message => {
-            const customerId = message.sender_id === user.id ? message.recipient_id : message.sender_id
+            const customerId = message.sender_id === params.id ? message.recipient_id : message.sender_id
             const customerProfile = profileMap.get(customerId)
             
             if (customerProfile) {
@@ -128,14 +129,14 @@ export default function DashboardPage() {
     fetchEmployeeData()
 
     // Set up realtime subscription for profile changes
-    const channel = supabase.channel('employee-dashboard')
+    const channel = supabase.channel('employee-profile')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'profiles',
-          filter: `user_id=eq.${user?.id}`
+          filter: `user_id=eq.${params.id}`
         },
         fetchEmployeeData
       )
@@ -144,7 +145,7 @@ export default function DashboardPage() {
     return () => {
       channel.unsubscribe()
     }
-  }, [supabase, user])
+  }, [supabase, user, params.id])
 
   const fetchEmployeeTickets = async () => {
     if (!user) return []
@@ -157,7 +158,7 @@ export default function DashboardPage() {
           rating
         )
       `)
-      .eq('assigned_to', user.id)
+      .eq('assigned_to', params.id)
       .order('status', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
 
@@ -173,7 +174,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (!user || user.role === 'customer') return null
+  if (!user || user.role !== 'admin') return null
 
   if (loading || !employee) {
     return (
@@ -187,15 +188,22 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Employee Management</h1>
+        <Button
+          variant="outline"
+          onClick={() => router.push('/employee/management')}
+        >
+          Back to Management
+        </Button>
+      </div>
 
       <EmployeeStats
         employee={employee}
         chats={chats}
         fetchTickets={fetchEmployeeTickets}
-        canModifyTickets={true}
+        canModifyTickets={false}
       />
     </div>
   )
-}
-
+} 
