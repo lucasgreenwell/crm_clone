@@ -132,13 +132,13 @@ export async function PATCH(request: Request) {
       created_by: typedTicketData.created_by,
       assigned_to: typedTicketData.assigned_to,
       assignee: typedTicketData.assignee?.[0] ? {
-        display_name: typedTicketData.assignee[0].display_name,
+        display_name: typedTicketData.assignee[0]?.display_name,
         email: '', // Email not needed for assignee
-        id: typedTicketData.assignee[0].id
+        id: typedTicketData.assignee[0]?.id
       } : null,
       profiles: {
-        display_name: typedTicketData.profiles[0].display_name,
-        email: typedTicketData.profiles[0].email
+        display_name: typedTicketData.profiles[0]?.display_name,
+        email: typedTicketData.profiles[0]?.email
       }
     }
 
