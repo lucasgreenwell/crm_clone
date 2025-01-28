@@ -109,6 +109,8 @@ export function EntitySearchResults({
         return `${entity.display_name} ${entity.email}`
       case 'template':
         return entity.name
+      case 'team':
+        return `${entity.name} ${entity.focus_area || ''}`
       default:
         return ''
     }
@@ -125,6 +127,8 @@ export function EntitySearchResults({
         return `${entity.display_name} (${entity.email})`
       case 'template':
         return entity.name
+      case 'team':
+        return `${entity.name}${entity.focus_area ? ` - ${entity.focus_area}` : ''}`
       default:
         return 'Unknown entity'
     }

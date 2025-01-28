@@ -277,6 +277,8 @@ export function AIAssistantModal({
         return entity.display_name
       case 'template':
         return entity.name
+      case 'team':
+        return entity.name
       default:
         return 'unknown'
     }
@@ -312,6 +314,9 @@ export function AIAssistantModal({
         .map(m => m.entity.id),
       template_ids: mentions
         .filter(m => m.type === 'template')
+        .map(m => m.entity.id),
+      team_ids: mentions
+        .filter(m => m.type === 'team')
         .map(m => m.entity.id),
     }
 

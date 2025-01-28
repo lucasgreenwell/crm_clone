@@ -23,7 +23,8 @@ export async function POST(req: Request) {
       ticket_ids = [],
       message_ids = [],
       profile_ids = [],
-      template_ids = []
+      template_ids = [],
+      team_ids = []
     } = json
 
     if (!content) {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch all referenced entities
-    const [ticketResults, messageResults, profileResults, templateResults] = await Promise.all([
+    const [ticketResults, messageResults, profileResults, templateResults, teamResults] = await Promise.all([
       ticket_ids.length > 0 ? 
         supabase.from('tickets').select('*').in('id', ticket_ids) : 
         { data: [] },
@@ -39,10 +40,13 @@ export async function POST(req: Request) {
         supabase.from('messages').select('*').in('id', message_ids) : 
         { data: [] },
       profile_ids.length > 0 ? 
-        supabase.from('profiles').select('*').in('id', profile_ids) : 
+        supabase.from('profiles').select('*').in('user_id', profile_ids) : 
         { data: [] },
       template_ids.length > 0 ? 
         supabase.from('templates').select('*').in('id', template_ids) : 
+        { data: [] },
+      team_ids.length > 0 ? 
+        supabase.from('teams').select('*').in('id', team_ids) : 
         { data: [] }
     ])
 
@@ -50,8 +54,9 @@ export async function POST(req: Request) {
     const entityMaps = {
       ticket: Object.fromEntries((ticketResults.data || []).map(t => [t.id, t])),
       message: Object.fromEntries((messageResults.data || []).map(m => [m.id, m])),
-      profile: Object.fromEntries((profileResults.data || []).map(p => [p.id, p])),
-      template: Object.fromEntries((templateResults.data || []).map(t => [t.id, t]))
+      profile: Object.fromEntries((profileResults.data || []).map(p => [p.user_id, p])),
+      template: Object.fromEntries((templateResults.data || []).map(t => [t.id, t])),
+      team: Object.fromEntries((teamResults.data || []).map(t => [t.id, t]))
     }
 
     // Process content to replace entity spans with actual data
@@ -78,6 +83,9 @@ export async function POST(req: Request) {
         case 'template':
           entityData = entityMaps.template[id]
           break
+        case 'team':
+          entityData = entityMaps.team[id]
+          break
       }
 
       if (entityData) {
@@ -99,7 +107,8 @@ export async function POST(req: Request) {
         ticket_ids,
         message_ids,
         profile_ids,
-        template_ids
+        template_ids,
+        team_ids
       })
       .select()
       .single()

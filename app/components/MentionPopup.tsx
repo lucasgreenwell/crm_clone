@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 
-export type EntityType = 'ticket' | 'message' | 'customer' | 'employee' | 'template'
+export type EntityType = 'ticket' | 'message' | 'customer' | 'employee' | 'template' | 'team'
 
 interface EntityOption {
   type: EntityType
@@ -18,6 +18,7 @@ const ENTITY_OPTIONS: EntityOption[] = [
   { type: 'customer', label: 'Customer', icon: '👤' },
   { type: 'employee', label: 'Employee', icon: '👔' },
   { type: 'template', label: 'Template', icon: '📝' },
+  { type: 'team', label: 'Team', icon: '👥' },
 ]
 
 interface MentionPopupProps {

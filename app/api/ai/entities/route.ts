@@ -64,6 +64,14 @@ export async function GET(req: Request) {
           .limit(50))
         break
 
+      case 'team':
+        ({ data, error } = await supabase
+          .from('teams')
+          .select('id, name, focus_area')
+          .order('created_at', { ascending: false })
+          .limit(50))
+        break
+
       default:
         return new NextResponse("Invalid entity type", { status: 400 })
     }
