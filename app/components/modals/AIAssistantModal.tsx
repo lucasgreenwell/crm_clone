@@ -57,26 +57,21 @@ export function AIAssistantModal({
   useEffect(() => {
     if (open) {
       loadConversations().then((hasConversations) => {
-        if (!hasConversations) {
+        const conversationIdFromUrl = searchParams.get('conversation')
+        
+        if (conversationIdFromUrl) {
+          loadConversation(conversationIdFromUrl)
+        } else if (hasConversations) {
+          // Only update URL if we're not already looking at a specific conversation
+          const firstConversation = conversations[0]
+          updateUrlWithConversation(firstConversation.id)
+          loadConversation(firstConversation.id)
+        } else {
           createNewConversation()
         }
       })
     }
   }, [open])
-
-  useEffect(() => {
-    const conversationIdFromUrl = searchParams.get('conversation')
-    const isAiChat = searchParams.get('ai_chat') === 'true'
-    
-    if (conversationIdFromUrl && isAiChat) {
-      loadConversation(conversationIdFromUrl)
-    } else if (open && conversations.length > 0) {
-      // Update URL with ai_chat=true and the first conversation
-      router.push(`?ai_chat=true&conversation=${conversations[0].id}`)
-      loadConversation(conversations[0].id)
-    }
-    // Note: if no conversations exist, the first useEffect will handle creating one
-  }, [searchParams, conversations, open])
 
   useEffect(() => {
     if (!open) {
@@ -146,9 +141,16 @@ export function AIAssistantModal({
     return validConversations.length > 0
   }
 
+  const updateUrlWithConversation = (id: string) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('ai_chat', 'true')
+    url.searchParams.set('conversation', id)
+    router.replace(url.pathname + url.search)
+  }
+
   const loadConversation = async (id: string) => {
     setConversationId(id)
-    router.push(`?ai_chat=true&conversation=${id}`)
+    updateUrlWithConversation(id)
 
     const { data: messagesData, error } = await supabase
       .from('ai_messages')
@@ -184,7 +186,7 @@ export function AIAssistantModal({
       return
     }
 
-    router.push(`?ai_chat=true&conversation=${conversation.id}`)
+    updateUrlWithConversation(conversation.id)
     setConversationId(conversation.id)
     setMessages([])
   }
@@ -377,6 +379,13 @@ export function AIAssistantModal({
       const href = target.getAttribute('href')
       if (href) {
         e.preventDefault()
+        // Remove AI chat params before navigating
+        const url = new URL(window.location.href)
+        url.searchParams.delete('ai_chat')
+        url.searchParams.delete('conversation')
+        router.replace(url.pathname + url.search)
+        // Close modal and navigate
+        onOpenChange(false)
         router.push(href)
       }
     }

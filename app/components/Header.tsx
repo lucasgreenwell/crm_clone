@@ -14,12 +14,34 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Menu, Sparkles } from "lucide-react"
 import { ChatNotifications } from "@/app/components/ChatNotifications"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AIAssistantModal } from "@/app/components/modals/AIAssistantModal"
+import { useSearchParams, useRouter } from "next/navigation"
 
 export function Header() {
   const { user, signOut } = useUser()
   const [aiModalOpen, setAiModalOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  useEffect(() => {
+    // Check for AI chat params when component mounts or URL changes
+    const isAiChat = searchParams.get('ai_chat') === 'true'
+    if (isAiChat && user?.role === 'admin') {
+      setAiModalOpen(true)
+    }
+  }, [searchParams, user?.role])
+
+  const handleAiModalOpenChange = (open: boolean) => {
+    setAiModalOpen(open)
+    if (!open) {
+      // Remove AI chat params from URL when modal closes
+      const url = new URL(window.location.href)
+      url.searchParams.delete('ai_chat')
+      url.searchParams.delete('conversation')
+      router.replace(url.pathname + url.search)
+    }
+  }
 
   const renderNavigation = () => {
     if (!user) return null
@@ -142,7 +164,7 @@ export function Header() {
       {user?.role === 'admin' && (
         <AIAssistantModal
           open={aiModalOpen}
-          onOpenChange={setAiModalOpen}
+          onOpenChange={handleAiModalOpenChange}
         />
       )}
     </>
