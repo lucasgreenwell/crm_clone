@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Send, ChevronRight, ChevronLeft } from "lucide-react"
+import { Send } from "lucide-react"
 import { Message } from "@/app/types/message"
 import { MessageItem } from "@/app/components/MessageItem"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
@@ -46,7 +46,6 @@ export function AIAssistantModal({
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const supabase = createClientComponentClient()
   const { toast } = useToast()
   const router = useRouter()
@@ -434,54 +433,40 @@ export function AIAssistantModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh]">
-        <DialogTitle className="sr-only">CursorRM</DialogTitle>
+        <DialogTitle className="text-xl font-bold border-b pb-2 text-center">Agent Mode</DialogTitle>
         <div className="flex h-[70vh] relative">
-          <div className={cn(
-            "border-r transition-all",
-            isSidebarOpen ? "w-64" : "w-0"
-          )}>
-            {isSidebarOpen && (
-              <div className="h-full flex flex-col">
-                <div className="p-4 border-b">
-                  <Button 
-                    onClick={createNewConversation}
-                    className="w-full"
-                  >
-                    New Chat
-                  </Button>
-                </div>
-                <ScrollArea className="flex-1">
-                  {conversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      onClick={() => loadConversation(conv.id)}
-                      className={cn(
-                        "p-4 cursor-pointer hover:bg-accent truncate",
-                        conversationId === conv.id && "bg-accent"
-                      )}
-                    >
-                      <p className="text-sm font-medium truncate max-w-[200px]">
-                        {conv.preview}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(conv.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
-                </ScrollArea>
+          <div className="w-64 border-r">
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b">
+                <Button 
+                  onClick={createNewConversation}
+                  className="w-full"
+                >
+                  New Chat
+                </Button>
               </div>
-            )}
+              <ScrollArea className="flex-1">
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    onClick={() => loadConversation(conv.id)}
+                    className={cn(
+                      "p-4 cursor-pointer hover:bg-accent truncate",
+                      conversationId === conv.id && "bg-accent"
+                    )}
+                  >
+                    <p className="text-sm font-medium truncate max-w-[200px]">
+                      {conv.preview}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(conv.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </ScrollArea>
+            </div>
           </div>
           <div className="flex-1 flex flex-col">
-            <div className="p-2 border-b">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              >
-                {isSidebarOpen ? <ChevronLeft /> : <ChevronRight />}
-              </Button>
-            </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((message) => (
                 <div
