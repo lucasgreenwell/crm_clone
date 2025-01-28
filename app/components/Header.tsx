@@ -17,12 +17,30 @@ import { ChatNotifications } from "@/app/components/ChatNotifications"
 import { useState, useEffect } from "react"
 import { AIAssistantModal } from "@/app/components/modals/AIAssistantModal"
 import { useSearchParams, useRouter } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+
+interface Conversation {
+  id: string
+  created_at: string
+  preview: string
+  message_count: number
+  last_message_time: string
+}
 
 export function Header() {
   const { user, signOut } = useUser()
   const [aiModalOpen, setAiModalOpen] = useState(false)
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const searchParams = useSearchParams()
   const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  // Load conversations when user logs in
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      loadConversations()
+    }
+  }, [user?.role])
 
   useEffect(() => {
     // Check for AI chat params when component mounts or URL changes
@@ -32,13 +50,87 @@ export function Header() {
     }
   }, [searchParams, user?.role])
 
-  const handleAiModalOpenChange = (open: boolean) => {
+  const loadConversations = async () => {
+    const { data: conversationsData, error } = await supabase
+      .from('ai_conversations')
+      .select('id, created_at')
+      .eq('user_id', user!.id)
+
+    if (error) {
+      console.error('Error loading conversations:', error)
+      return false
+    }
+
+    // Get message counts and latest messages for each conversation
+    const conversationsWithDetails = await Promise.all(
+      conversationsData.map(async (conv) => {
+        const { data: messages, error: messagesError } = await supabase
+          .from('ai_messages')
+          .select('content, created_at')
+          .eq('conversation_id', conv.id)
+          .order('created_at', { ascending: false })
+
+        if (messagesError) {
+          console.error('Error fetching messages:', messagesError)
+          return null
+        }
+
+        // Only include conversations with messages
+        if (!messages || messages.length === 0) {
+          return null
+        }
+
+        return {
+          ...conv,
+          preview: messages[0].content,
+          message_count: messages.length,
+          last_message_time: messages[0].created_at
+        }
+      })
+    )
+
+    // Filter out null values and conversations with no messages
+    const validConversations = conversationsWithDetails
+      .filter((conv): conv is NonNullable<typeof conv> => 
+        conv !== null && conv.message_count > 0
+      )
+      .map(conv => ({
+        ...conv,
+        preview: conv.preview || 'New Conversation'
+      }))
+
+    // Sort conversations by the time of the last message
+    validConversations.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime())
+
+    setConversations(validConversations)
+    return validConversations.length > 0
+  }
+
+  const handleAiModalOpenChange = async (open: boolean) => {
     setAiModalOpen(open)
     if (!open) {
       // Remove AI chat params from URL when modal closes
       const url = new URL(window.location.href)
       url.searchParams.delete('ai_chat')
       url.searchParams.delete('conversation')
+      router.replace(url.pathname + url.search)
+    } else if (conversations.length === 0) {
+      // Create a new conversation if none exist
+      const { data: conversation, error } = await supabase
+        .from('ai_conversations')
+        .insert({ user_id: user!.id })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating conversation:', error)
+        return
+      }
+
+      // Update URL with new conversation
+      const url = new URL(window.location.href)
+      url.searchParams.set('ai_chat', 'true')
+      url.searchParams.set('conversation', conversation.id)
       router.replace(url.pathname + url.search)
     }
   }
@@ -165,6 +257,8 @@ export function Header() {
         <AIAssistantModal
           open={aiModalOpen}
           onOpenChange={handleAiModalOpenChange}
+          conversations={conversations}
+          onConversationsChange={setConversations}
         />
       )}
     </>

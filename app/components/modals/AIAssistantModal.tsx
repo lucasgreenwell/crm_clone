@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Send, ChevronRight, ChevronLeft } from "lucide-react"
@@ -20,11 +20,14 @@ interface Conversation {
   created_at: string
   preview: string
   message_count: number
+  last_message_time: string
 }
 
 interface AIAssistantModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  conversations: Conversation[]
+  onConversationsChange: (conversations: Conversation[]) => void
 }
 
 interface EntityMention {
@@ -36,12 +39,13 @@ interface EntityMention {
 export function AIAssistantModal({
   open,
   onOpenChange,
+  conversations,
+  onConversationsChange,
 }: AIAssistantModalProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
-  const [conversations, setConversations] = useState<Conversation[]>([])
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const supabase = createClientComponentClient()
   const { toast } = useToast()
@@ -56,20 +60,14 @@ export function AIAssistantModal({
 
   useEffect(() => {
     if (open) {
-      loadConversations().then((hasConversations) => {
-        const conversationIdFromUrl = searchParams.get('conversation')
-        
-        if (conversationIdFromUrl) {
-          loadConversation(conversationIdFromUrl)
-        } else if (hasConversations) {
-          // Only update URL if we're not already looking at a specific conversation
-          const firstConversation = conversations[0]
-          updateUrlWithConversation(firstConversation.id)
-          loadConversation(firstConversation.id)
-        } else {
-          createNewConversation()
-        }
-      })
+      const conversationIdFromUrl = searchParams.get('conversation')
+      if (conversationIdFromUrl) {
+        loadConversation(conversationIdFromUrl)
+      } else if (conversations.length > 0) {
+        // Load the most recent conversation (first in the array since they're ordered by created_at desc)
+        const mostRecentConversation = conversations[0]
+        loadConversation(mostRecentConversation.id)
+      }
     }
   }, [open])
 
@@ -93,7 +91,6 @@ export function AIAssistantModal({
       .from('ai_conversations')
       .select('id, created_at')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
 
     if (error) {
       console.error('Error loading conversations:', error)
@@ -122,7 +119,8 @@ export function AIAssistantModal({
         return {
           ...conv,
           preview: messages[0].content,
-          message_count: messages.length
+          message_count: messages.length,
+          last_message_time: messages[0].created_at
         }
       })
     )
@@ -137,7 +135,10 @@ export function AIAssistantModal({
         preview: conv.preview || 'New Conversation'
       }))
 
-    setConversations(validConversations)
+    // Sort conversations by the time of the last message
+    validConversations.sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime())
+
+    onConversationsChange(validConversations)
     return validConversations.length > 0
   }
 
@@ -189,6 +190,22 @@ export function AIAssistantModal({
     updateUrlWithConversation(conversation.id)
     setConversationId(conversation.id)
     setMessages([])
+    
+    // Refresh conversations list
+    const { data: messages } = await supabase
+      .from('ai_messages')
+      .select('content, created_at')
+      .eq('conversation_id', conversation.id)
+      .order('created_at', { ascending: false })
+
+    onConversationsChange([
+      {
+        ...conversation,
+        preview: messages?.[0]?.content || 'New Conversation',
+        message_count: messages?.length || 0
+      },
+      ...conversations
+    ])
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,20 +217,30 @@ export function AIAssistantModal({
     if (lastAtIndex !== -1) {
       const textAfterAt = value.slice(lastAtIndex + 1)
       
-      if (lastAtIndex === value.length - 1) {
-        // Just typed @
-        const rect = e.target.getBoundingClientRect()
-        const position = {
-          top: rect.top - 320,
-          left: rect.left + window.scrollX
+      // Check if we're in the middle of an existing mention
+      const isExistingMention = mentions.some(mention => {
+        const displayText = '@' + getEntityDisplayText(mention.type, mention.entity)
+        const mentionStart = value.lastIndexOf(displayText)
+        return mentionStart !== -1 && mentionStart <= lastAtIndex && 
+               mentionStart + displayText.length > lastAtIndex
+      })
+
+      if (!isExistingMention) {
+        if (lastAtIndex === value.length - 1) {
+          // Just typed @
+          const rect = e.target.getBoundingClientRect()
+          const position = {
+            top: rect.top - 320,
+            left: rect.left + window.scrollX
+          }
+          setMentionPosition(position)
+          setMentionPopupOpen(true)
+          setSearchQuery("")
+        } else if (!selectedEntityType) {
+          // Filtering entity types
+          setSearchQuery(textAfterAt)
+          setMentionPopupOpen(true)
         }
-        setMentionPosition(position)
-        setMentionPopupOpen(true)
-        setSearchQuery("")
-      } else if (!selectedEntityType) {
-        // Filtering entity types
-        setSearchQuery(textAfterAt)
-        setMentionPopupOpen(true)
       }
     } else {
       // No @ symbol, close the popup
@@ -260,7 +287,10 @@ export function AIAssistantModal({
     const parts = input.split('@')
     parts[parts.length - 1] = displayText + ' '
     setInput(parts.join('@'))
+
+    // Clear all mention-related states
     setSelectedEntityType(null)
+    setMentionPopupOpen(false)
     setSearchQuery("")
 
     // Focus back on input
@@ -297,9 +327,13 @@ export function AIAssistantModal({
     let messageWithSpans = content
     for (const mention of mentions) {
       const displayText = '@' + getEntityDisplayText(mention.type, mention.entity)
+      const spanAttributes = mention.type === 'ticket' 
+        ? `class="entity-${mention.type}" id="${mention.entity.id}" href="/employee/tickets?ticket=${mention.entity.id}"`
+        : `class="entity-${mention.type}" id="${mention.entity.id}"`
+      
       messageWithSpans = messageWithSpans.replace(
         displayText,
-        `<span class="entity-${mention.type}" id="${mention.entity.id}">${displayText}</span>`
+        `<span ${spanAttributes}>${displayText}</span>`
       )
     }
 
@@ -359,8 +393,14 @@ export function AIAssistantModal({
       const aiMessage = await response.json()
       setMessages(prev => [...prev, aiMessage])
       
-      // Refresh conversations list to update previews
-      loadConversations()
+      // Update conversations list with new preview
+      const updatedConversations = conversations.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, preview: aiMessage.content, message_count: conv.message_count + 2 }
+          : conv
+      )
+      onConversationsChange(updatedConversations)
+
     } catch (error) {
       console.error('Error sending message:', error)
       toast({
@@ -394,6 +434,7 @@ export function AIAssistantModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh]">
+        <DialogTitle className="sr-only">CursorRM</DialogTitle>
         <div className="flex h-[70vh] relative">
           <div className={cn(
             "border-r transition-all",
