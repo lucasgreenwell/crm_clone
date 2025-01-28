@@ -26,6 +26,7 @@ import {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { StatusSelect } from "@/app/components/StatusSelect"
 import { TicketCard } from "@/app/components/TicketCard"
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface TicketsListProps {
   fetchTickets: () => Promise<Ticket[]>
@@ -61,9 +62,23 @@ export function TicketsList({
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
   const [bulkStatus, setBulkStatus] = useState<Ticket['status']>('open')
   const [showBulkStatusDialog, setShowBulkStatusDialog] = useState(false)
+  const [viewTicketId, setViewTicketId] = useState<string | null>(null)
   const { toast } = useToast()
   const { user } = useUser()
   const supabase = createClientComponentClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Handle query parameter for ticket view
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket')
+    if (ticketId) {
+      const ticket = tickets.find(t => t.id === ticketId)
+      if (ticket) {
+        setViewTicketId(ticketId)
+      }
+    }
+  }, [searchParams, tickets])
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -172,6 +187,11 @@ export function TicketsList({
     setTickets((prev) =>
       prev.map((t) => (t.id === updatedTicket.id ? updatedTicket : t))
     )
+    
+    // If the ticket is closed or resolved, remove the query parameter
+    if (updatedTicket.status === 'closed' || updatedTicket.status === 'resolved') {
+      router.push(window.location.pathname)
+    }
   }
 
   const handleDeleteTicket = async (ticket: Ticket) => {
@@ -313,6 +333,20 @@ export function TicketsList({
       newSelected.add(ticketId)
     }
     setSelectedTickets(newSelected)
+  }
+
+  const handleTicketClick = (ticket: Ticket) => {
+    setViewTicketId(ticket.id)
+    // Update URL with ticket ID
+    const newUrl = new URL(window.location.href)
+    newUrl.searchParams.set('ticket', ticket.id)
+    router.push(newUrl.pathname + newUrl.search)
+  }
+
+  const handleCloseTicketView = () => {
+    setViewTicketId(null)
+    // Remove ticket ID from URL
+    router.push(window.location.pathname)
   }
 
   return (
@@ -483,6 +517,9 @@ export function TicketsList({
                   setShowDeleteDialog(true)
                 } : undefined}
                 getUserDisplayName={getUserDisplayName}
+                onClick={() => handleTicketClick(ticket)}
+                isViewing={viewTicketId === ticket.id}
+                onClose={handleCloseTicketView}
               />
             )
           ))}

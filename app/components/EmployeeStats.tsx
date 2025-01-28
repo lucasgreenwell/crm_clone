@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MessageSquare, Ticket, AlertCircle, Clock } from 'lucide-react'
 import { TicketsList } from '@/app/components/TicketsList'
@@ -25,9 +25,32 @@ export function EmployeeStats({
   canModifyTickets = false
 }: EmployeeStatsProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useUser()
   const [selectedChat, setSelectedChat] = useState<EmployeeChat | null>(null)
   const [showChatModal, setShowChatModal] = useState(false)
+  const [viewingTicketId, setViewingTicketId] = useState<string | null>(null)
+  const [tickets, setTickets] = useState<TicketType[]>([])
+
+  useEffect(() => {
+    const loadTickets = async () => {
+      const data = await fetchTickets()
+      setTickets(data)
+    }
+    loadTickets()
+  }, [fetchTickets])
+
+  useEffect(() => {
+    const ticketId = searchParams.get('ticket')
+    if (ticketId) {
+      const ticket = tickets.find(t => t.id === ticketId)
+      if (ticket) {
+        setViewingTicketId(ticketId)
+      }
+    } else {
+      setViewingTicketId(null)
+    }
+  }, [searchParams, tickets])
 
   const getRatingColor = (rating: number) => {
     if (rating > 3.5) return 'text-green-500'
@@ -163,6 +186,15 @@ export function EmployeeStats({
                       if (id === employee.user_id) return employee.display_name
                       return 'Unknown User'
                     }}
+                    onClick={() => {
+                      const newUrl = new URL(window.location.href)
+                      newUrl.searchParams.set('ticket', ticket.id)
+                      router.push(newUrl.pathname + newUrl.search)
+                    }}
+                    onClose={() => {
+                      router.push(window.location.pathname)
+                    }}
+                    isViewing={viewingTicketId === ticket.id}
                   />
                 </div>
                 {(ticket.status === 'closed' || ticket.status === 'resolved') && 

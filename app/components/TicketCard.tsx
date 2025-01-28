@@ -16,6 +16,9 @@ interface TicketCardProps {
   onTicketUpdated: (ticket: Ticket) => void
   onDelete?: (ticket: Ticket) => void
   getUserDisplayName: (userId: string) => string
+  onClick?: () => void
+  isViewing?: boolean
+  onClose?: () => void
 }
 
 export function TicketCard({
@@ -28,6 +31,9 @@ export function TicketCard({
   onTicketUpdated,
   onDelete,
   getUserDisplayName,
+  onClick,
+  isViewing = false,
+  onClose,
 }: TicketCardProps) {
   const [showViewModal, setShowViewModal] = useState(false)
 
@@ -51,13 +57,24 @@ export function TicketCard({
     ) {
       return
     }
-    setShowViewModal(true)
+    if (onClick) {
+      onClick()
+    } else {
+      setShowViewModal(true)
+    }
+  }
+
+  const handleModalClose = () => {
+    setShowViewModal(false)
+    if (onClose) {
+      onClose()
+    }
   }
 
   return (
     <>
       <div 
-        className="p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
+        className={`p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer ${isViewing ? 'border-primary' : ''}`}
         onClick={handleClick}
         data-testid="ticket-card"
       >
@@ -122,8 +139,8 @@ export function TicketCard({
 
       <ViewTicketModal
         ticket={ticket}
-        open={showViewModal}
-        onOpenChange={setShowViewModal}
+        open={showViewModal || isViewing}
+        onOpenChange={handleModalClose}
         onStatusChange={onStatusChange}
         onTicketUpdated={onTicketUpdated}
         getUserDisplayName={getUserDisplayName}

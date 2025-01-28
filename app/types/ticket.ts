@@ -9,6 +9,7 @@ export interface Ticket {
   team_id?: string
   created_at: string
   updated_at: string
+  ticket_feedback?: TicketFeedback
 }
 
 export interface TicketMessage {
