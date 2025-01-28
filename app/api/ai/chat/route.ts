@@ -1,11 +1,31 @@
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
-import OpenAI from "openai"
+import { ChatOpenAI } from "@langchain/openai"
+import { createTicketTool, updateTicketTool, deleteTicketTool } from "../tickets/tools"
+import { AgentExecutor, createOpenAIFunctionsAgent } from "langchain/agents"
+import { RunnableSequence } from "@langchain/core/runnables"
+import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts"
+import { AIMessage, HumanMessage } from "@langchain/core/messages"
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+const model = new ChatOpenAI({
+  modelName: "gpt-4-turbo-preview",
+  temperature: 0
 })
+
+// Create the agent with our tools
+const tools = [createTicketTool, updateTicketTool, deleteTicketTool]
+
+const prompt = ChatPromptTemplate.fromMessages([
+  ["system", `You are an AI assistant for a CRM system. You can help with customer service, ticket management, and general inquiries. 
+  Users may attach tickets, messages, profiles, teams, and templates to their messages for context. These entities are from our database and will appear as JSON objects in the users message to you.
+  You have access to tools that allow you to create, update, and delete tickets. Use these tools when appropriate based on the user's request.
+  Always be professional, helpful, and concise in your responses.
+  When using tools, make sure to handle any errors appropriately and communicate them clearly to the user.`],
+  new MessagesPlaceholder("chat_history"),
+  ["human", "{input}"],
+  new MessagesPlaceholder("agent_scratchpad"),
+])
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +35,18 @@ export async function POST(req: Request) {
     if (!session) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
+
+    // Create the agent
+    const agent = await createOpenAIFunctionsAgent({
+      llm: model,
+      tools,
+      prompt
+    })
+
+    const agentExecutor = new AgentExecutor({
+      agent,
+      tools
+    })
 
     const json = await req.json()
     const { 
@@ -68,7 +100,6 @@ export async function POST(req: Request) {
       const [fullMatch, type, id] = match
       let entityData
 
-      // Get entity from the appropriate map
       switch (type) {
         case 'ticket':
           entityData = entityMaps.ticket[id]
@@ -96,7 +127,31 @@ export async function POST(req: Request) {
       }
     }
 
-    // Store user message with original content (with spans)
+    // Get conversation history
+    const { data: conversationHistory, error: historyError } = await supabase
+      .from('ai_messages')
+      .select('content, is_ai')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(10)
+
+    if (historyError) {
+      console.error('Error fetching conversation history:', historyError)
+      return new NextResponse("Error fetching conversation history", { status: 500 })
+    }
+
+    // Format conversation history for LangChain
+    const chatHistory = conversationHistory.map(msg => 
+      msg.is_ai ? new AIMessage(msg.content) : new HumanMessage(msg.content)
+    )
+
+    // Execute the agent
+    const result = await agentExecutor.invoke({
+      input: processedContent,
+      chat_history: chatHistory
+    })
+
+    // Store user message
     const { data: userMessage, error: userMessageError } = await supabase
       .from('ai_messages')
       .insert({
@@ -118,54 +173,12 @@ export async function POST(req: Request) {
       return new NextResponse("Error storing message", { status: 500 })
     }
 
-    // Get conversation history for context
-    const { data: conversationHistory, error: historyError } = await supabase
-      .from('ai_messages')
-      .select('content, is_ai')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
-      .limit(10)
-
-    if (historyError) {
-      console.error('Error fetching conversation history:', historyError)
-      return new NextResponse("Error fetching conversation history", { status: 500 })
-    }
-
-    // Format conversation history for OpenAI, using processedContent for the latest message
-    const chatMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = conversationHistory.map((msg, index) => ({
-      role: msg.is_ai ? 'assistant' : 'user',
-      content: index === conversationHistory.length - 1 ? processedContent : msg.content
-    }))
-
-    // Add system message
-    chatMessages.unshift({
-      role: 'system',
-      content: `You are an AI assistant for a CRM system. You can help with customer service, ticket management, and general inquiries. 
-      Users may attach tickets, messages, profiles, teams, and templates to their messages for context. These entities are from our database and will appear as JSON objects in the users message to you.
-      Always be professional, helpful, and concise in your responses.`
-    })
-
-    console.log(chatMessages)
-
-    // Get AI response
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: chatMessages,
-      temperature: 0
-    })
-
-    const aiResponse = completion.choices[0].message.content
-
-    if (!aiResponse) {
-      return new NextResponse("No response from AI", { status: 500 })
-    }
-
     // Store AI response
     const { data: aiMessage, error: aiMessageError } = await supabase
       .from('ai_messages')
       .insert({
         conversation_id: conversationId,
-        content: aiResponse,
+        content: result.output,
         is_ai: true
       })
       .select()
