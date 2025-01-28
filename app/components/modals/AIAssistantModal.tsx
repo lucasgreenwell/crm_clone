@@ -371,6 +371,17 @@ export function AIAssistantModal({
     }
   }
 
+  const handleSpanClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.tagName === 'SPAN' && target.classList.contains('entity-ticket')) {
+      const href = target.getAttribute('href')
+      if (href) {
+        e.preventDefault()
+        router.push(href)
+      }
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh]">
@@ -435,8 +446,9 @@ export function AIAssistantModal({
                     message.is_ai ? "bg-accent" : "bg-primary text-primary-foreground"
                   )}>
                     <div 
+                      onClick={handleSpanClick}
                       dangerouslySetInnerHTML={{ __html: message.content }}
-                      className="[&_.entity-ticket]:bg-blue-100 [&_.entity-ticket]:text-blue-900 [&_.entity-ticket]:px-1 [&_.entity-ticket]:rounded
+                      className="[&_.entity-ticket]:bg-blue-100 [&_.entity-ticket]:text-blue-900 [&_.entity-ticket]:px-1 [&_.entity-ticket]:rounded [&_.entity-ticket]:cursor-pointer hover:[&_.entity-ticket]:underline
                                 [&_.entity-message]:bg-green-100 [&_.entity-message]:text-green-900 [&_.entity-message]:px-1 [&_.entity-message]:rounded
                                 [&_.entity-customer]:bg-purple-100 [&_.entity-customer]:text-purple-900 [&_.entity-customer]:px-1 [&_.entity-customer]:rounded
                                 [&_.entity-employee]:bg-yellow-100 [&_.entity-employee]:text-yellow-900 [&_.entity-employee]:px-1 [&_.entity-employee]:rounded

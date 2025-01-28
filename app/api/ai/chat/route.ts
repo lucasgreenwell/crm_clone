@@ -18,7 +18,16 @@ const tools = [createTicketTool, updateTicketTool, deleteTicketTool]
 
 const prompt = ChatPromptTemplate.fromMessages([
   ["system", `You are an AI assistant for a CRM system. You can help with customer service, ticket management, and general inquiries. 
-  Users may attach tickets, messages, profiles, teams, and templates to their messages for context. These entities are from our database and will appear as JSON objects in the users message to you.
+  Users may attach tickets, messages, profiles, teams, and templates to their messages for context. These entities from our database will be referenced with special span tags.
+
+  When you create or update a ticket, you should reference it in your response using a span tag with this format:
+  <span class="entity-ticket" id="TICKET_ID" href="/employee/tickets?ticket=TICKET_ID">ticket-FIRST_8_CHARS_OF_ID</span>
+
+  For example, if you create a ticket with ID "123e4567-e89b-12d3-a456-426614174000", you should reference it as:
+  <span class="entity-ticket" id="123e4567-e89b-12d3-a456-426614174000" href="/employee/tickets?ticket=123e4567-e89b-12d3-a456-426614174000">ticket-123e4567</span>
+
+  Never include the full JSON data of tickets in your responses as this is not useful for users. Instead, always use the span format above and describe the relevant details in natural language.
+
   You have access to tools that allow you to create, update, and delete tickets. Use these tools when appropriate based on the user's request.
   Always be professional, helpful, and concise in your responses.
   When using tools, make sure to handle any errors appropriately and communicate them clearly to the user.`],
@@ -91,7 +100,7 @@ export async function POST(req: Request) {
       team: Object.fromEntries((teamResults.data || []).map(t => [t.id, t]))
     }
 
-    // Process content to replace entity spans with actual data
+    // Process content to replace entity spans with actual data for AI context
     let processedContent = content
     const spanRegex = /<span class="entity-(\w+)" id="([^"]+)">[^<]+<\/span>/g
     const matches = [...content.matchAll(spanRegex)]
@@ -103,27 +112,50 @@ export async function POST(req: Request) {
       switch (type) {
         case 'ticket':
           entityData = entityMaps.ticket[id]
+          if (entityData) {
+            processedContent = processedContent.replace(
+              fullMatch,
+              `\nTicket: ${JSON.stringify(entityData, null, 2)}\n`
+            )
+          }
           break
         case 'message':
           entityData = entityMaps.message[id]
+          if (entityData) {
+            processedContent = processedContent.replace(
+              fullMatch,
+              `\nMessage: ${JSON.stringify(entityData, null, 2)}\n`
+            )
+          }
           break
         case 'customer':
         case 'employee':
           entityData = entityMaps.profile[id]
+          if (entityData) {
+            processedContent = processedContent.replace(
+              fullMatch,
+              `\n${type.charAt(0).toUpperCase() + type.slice(1)}: ${JSON.stringify(entityData, null, 2)}\n`
+            )
+          }
           break
         case 'template':
           entityData = entityMaps.template[id]
+          if (entityData) {
+            processedContent = processedContent.replace(
+              fullMatch,
+              `\nTemplate: ${JSON.stringify(entityData, null, 2)}\n`
+            )
+          }
           break
         case 'team':
           entityData = entityMaps.team[id]
+          if (entityData) {
+            processedContent = processedContent.replace(
+              fullMatch,
+              `\nTeam: ${JSON.stringify(entityData, null, 2)}\n`
+            )
+          }
           break
-      }
-
-      if (entityData) {
-        processedContent = processedContent.replace(
-          fullMatch,
-          `@${type}-${id.slice(0, 8)} (${type.charAt(0).toUpperCase() + type.slice(1)} Data: ${JSON.stringify(entityData, null, 2)})`
-        )
       }
     }
 
