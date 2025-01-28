@@ -41,7 +41,7 @@ export async function GET(req: Request) {
       case 'customer':
         ({ data, error } = await supabase
           .from('profiles')
-          .select('id, display_name, email')
+          .select('user_id, display_name, email')
           .eq('role', 'customer')
           .order('created_at', { ascending: false })
           .limit(50))
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       case 'employee':
         ({ data, error } = await supabase
           .from('profiles')
-          .select('id, display_name, email')
+          .select('user_id, display_name, email')
           .in('role', ['agent', 'admin'])
           .order('created_at', { ascending: false })
           .limit(50))
@@ -71,6 +71,19 @@ export async function GET(req: Request) {
     if (error) {
       console.error(`Error fetching ${type}:`, error)
       return new NextResponse("Error fetching entities", { status: 500 })
+    }
+
+    // For profiles, map user_id to id to maintain consistent interface
+    if (data && (type === 'customer' || type === 'employee')) {
+      data = data.map(profile => {
+        if ('user_id' in profile) {
+          return {
+            ...profile,
+            id: profile.user_id
+          }
+        }
+        return profile
+      })
     }
 
     return NextResponse.json(data)

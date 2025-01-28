@@ -78,6 +78,17 @@ export function AIAssistantModal({
     // Note: if no conversations exist, the first useEffect will handle creating one
   }, [searchParams, conversations, open])
 
+  useEffect(() => {
+    if (!open) {
+      // Clear all mention-related state when modal closes
+      setMentionPopupOpen(false)
+      setSelectedEntityType(null)
+      setSearchQuery("")
+      setMentions([])
+      setInput("")
+    }
+  }, [open])
+
   const loadConversations = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return false
@@ -182,21 +193,49 @@ export function AIAssistantModal({
     const value = e.target.value
     setInput(value)
 
-    // Check for @ symbol
-    if (value.endsWith('@')) {
-      const rect = e.target.getBoundingClientRect()
-      const position = {
-        top: rect.top - 320, // Position above input, with space for the popup
-        left: rect.left + window.scrollX
+    // Handle @ symbol and filtering
+    const lastAtIndex = value.lastIndexOf('@')
+    if (lastAtIndex !== -1) {
+      const textAfterAt = value.slice(lastAtIndex + 1)
+      
+      if (lastAtIndex === value.length - 1) {
+        // Just typed @
+        const rect = e.target.getBoundingClientRect()
+        const position = {
+          top: rect.top - 320,
+          left: rect.left + window.scrollX
+        }
+        setMentionPosition(position)
+        setMentionPopupOpen(true)
+        setSearchQuery("")
+      } else if (!selectedEntityType) {
+        // Filtering entity types
+        setSearchQuery(textAfterAt)
+        setMentionPopupOpen(true)
       }
-      setMentionPosition(position)
-      setMentionPopupOpen(true)
+    } else {
+      // No @ symbol, close the popup
+      setMentionPopupOpen(false)
     }
 
     // Update search query if we're in entity selection mode
     if (selectedEntityType) {
       const lastMention = value.split('@').pop() || ''
       setSearchQuery(lastMention)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // Prevent sending message if either popup is open
+      if (mentionPopupOpen || selectedEntityType) {
+        e.preventDefault()
+        return
+      }
+      if (!isLoading) {
+        e.preventDefault()
+        handleSendMessage()
+      }
     }
   }
 
@@ -413,14 +452,9 @@ export function AIAssistantModal({
                   ref={inputRef}
                   value={input}
                   onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
                   placeholder="Type your message... Use @ to mention entities"
                   disabled={isLoading}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSendMessage()
-                    }
-                  }}
                 />
                 <Button 
                   onClick={handleSendMessage} 
@@ -440,6 +474,7 @@ export function AIAssistantModal({
                 onClose={() => setMentionPopupOpen(false)}
                 onSelect={handleEntityTypeSelect}
                 position={{ top: 0, left: 0 }}
+                searchQuery={searchQuery}
               />
             </div>
           )}
@@ -451,6 +486,11 @@ export function AIAssistantModal({
                 searchQuery={searchQuery}
                 onSelect={handleEntitySelect}
                 onClose={() => setSelectedEntityType(null)}
+                onBack={() => {
+                  setSelectedEntityType(null)
+                  setMentionPopupOpen(true)
+                  setSearchQuery("")
+                }}
                 position={{ top: 0, left: 0 }}
               />
             </div>
